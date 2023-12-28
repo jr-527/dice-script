@@ -7,7 +7,7 @@ For example, if you input the text ```15d12 * 3 + 3d4 * (2d6 - 1d10)``` this pro
 Download the repository to your computer. Make sure that your Python installation has matplotlib and numpy, and that you're running a reasonably modern version of Python.  
 **Optional:**
 This repository uses code written in C to speed up a few operations. If Python cannot use the part written in C, it just falls back to a marginally slower Python implementation. In this case, when the program starts it will print a line to console saying that something went wrong importing the C stuff.
-I have provided a compiled 64 bit dll that works on my version of Windows. IfIn order to use the C code on other operating systems, you should compile helpers.c to your operating system's equivalent of .dll (probably .so for linux) and change helpers.c line 26 to refer to the compiled file.
+I have provided a compiled 64 bit dll that works on my version of Windows. In order to use the C code on other operating systems, you should compile helpers.c to your operating system's equivalent of .dll (probably .so for linux) and change helpers.c line 26 to refer to the compiled file. I haven't tried this on anything other than Windows, so no guarantees that it works.
 
 ## Usage
 
