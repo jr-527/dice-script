@@ -20,6 +20,8 @@ import_thread = threading.Thread(target=import_plt, name='import matplotlib')
 import_thread.start()
 ct.windll.kernel32.SetConsoleTitleW('Dice Script')
 
+PRINT_COMPARISONS = True
+
 class die:
     '''
     A class for managing PMFs which take on integer values. A number of built-in functions like
@@ -45,8 +47,16 @@ class die:
         '''
         self.start, self.arr = trim(arr)
         self.start += start
-        self.name = name
+        self.name = re.sub('\+\-', '-', str(name))
+        self.name = re.sub('\-\-', '+', self.name)
+        if len(self.name) > 0 and self.name[0] == '+':
+            self.name = self.name[1:]
         self.basicName = basicName
+
+    def __getitem__(self, value):
+        if self.start <= value and self.start + len(self.arr) > value:
+            return self.arr[value-self.start]
+        return 0.0
 
     def __repr__(self):
         return f'die({self.arr}, {self.start}, {self}, {self.basicName})'
@@ -78,7 +88,7 @@ class die:
         for i, val in enumerate(self.arr):
             j = int_div_to_0(ss+i,n) - new_start
             out[j] += val
-        return die(out, new_start, f'{self}/{n}', False)
+        return die(out, new_start, f'{self}/{n}', True)
 
     def __floordiv__(self, n):
         '''
@@ -112,13 +122,13 @@ class die:
             return self / (1/other)
         other = round(other)
         if other == 0:
-            return die([1.0], 0, 1)
+            return die([1.0], 0, '0', True)
         if other == 1:
             return self
         if other < 0:
             return -self*abs(other)
         arr = my_c.pmf_times_int(self.arr, other)
-        return die(arr, self.start*other, f'{self}*{other}', self.basicName)
+        return die(arr, self.start*other, f'{self}*{other}', True)
 
     def __matmul__(self, other):
         '''
@@ -192,7 +202,10 @@ class die:
         '''
         Returns the distribution of the negative of self.
         '''
-        return die(np.flip(self.arr), -self.start-len(self.arr)+1, f'-{self}', False)
+        out_basic_name = not self.basicName
+        if re.fullmatch('(\-)?[1-9][0-9]*d[1-9][0-9]*', self.name):
+            out_basic_name = True
+        return die(np.flip(self.arr), -self.start-len(self.arr)+1, f'-{self}', out_basic_name)
 
     def __pow__(self, n):
         '''
@@ -253,14 +266,16 @@ class die:
             a = self.arr
             a = a[np.indices(a.shape)[0] + self.start == other]
             s = np.sum(a)
-            print(f'P[{self} = {other}] =', np.format_float_positional(s,14,trim='-'))
+            if PRINT_COMPARISONS:
+                print(f'P[{self} = {other}] =', np.format_float_positional(s,14,trim='-'))
             return die([1-s,s],0,f'[{self} = {other}]')
             # return self
         t = self-other
         a = t.arr
         a = a[np.indices(a.shape)[0]+t.start == 0]
         s = np.sum(a)
-        print(f'P[{self} = {other}] =', np.format_float_positional(s,14,trim='-'))
+        if PRINT_COMPARISONS:
+            print(f'P[{self} = {other}] =', np.format_float_positional(s,14,trim='-'))
         return die([1-s,s],0,f'[{self} = {other}]')
         # return self
 
@@ -277,14 +292,16 @@ class die:
             a = self.arr
             a = a[np.indices(a.shape)[0]+self.start < other]
             s = np.sum(a)
-            print(f'P[{self} < {other}] =', np.format_float_positional(s,14,trim='-'))
+            if PRINT_COMPARISONS:
+                print(f'P[{self} < {other}] =', np.format_float_positional(s,14,trim='-'))
             return die([1-s,s],0,f'[{self} < {other}]', True)
             # return self
         t = self-other
         a = t.arr
         a = a[np.indices(a.shape)[0]+t.start < 0]
         s = np.sum(a)
-        print(f'P[{self} < {other}] =', np.format_float_positional(s,14,trim='-'))
+        if PRINT_COMPARISONS:
+            print(f'P[{self} < {other}] =', np.format_float_positional(s,14,trim='-'))
         return die([1-s,s],0,f'[{self} < {other}]', True)
         # return self
 
@@ -302,14 +319,16 @@ class die:
             a = self.arr
             a = a[np.indices(a.shape)[0]+self.start <= other]
             s = np.sum(a)
-            print(f'P[{self} <= {other}] =', np.format_float_positional(s,14,trim='-'))
+            if PRINT_COMPARISONS:
+                print(f'P[{self} <= {other}] =', np.format_float_positional(s,14,trim='-'))
             return die([1-s,s],0,f'[{self} <= {other}]', True)
             # return self
         t = self-other
         a = t.arr
         a = a[np.indices(a.shape)[0]+t.start <= 0]
         s = np.sum(a)
-        print(f'P[{self} <= {other}] =', np.format_float_positional(s,14,trim='-'))
+        if PRINT_COMPARISONS:
+            print(f'P[{self} <= {other}] =', np.format_float_positional(s,14,trim='-'))
         return die([1-s,s],0,f'[{self} <= {other}]', True)
         # return self
 
@@ -326,14 +345,16 @@ class die:
             a = self.arr
             a = a[np.indices(a.shape)[0]+self.start > other]
             s = np.sum(a)
-            print(f'P[{self} > {other}] =', np.format_float_positional(s,14,trim='-'))
+            if PRINT_COMPARISONS:
+                print(f'P[{self} > {other}] =', np.format_float_positional(s,14,trim='-'))
             return die([1-s,s],0,f'[{self} > {other}]', True)
             # return self
         t = self-other
         a = t.arr
         a = a[np.indices(a.shape)[0]+t.start > 0]
         s = np.sum(a)
-        print(f'P[{self} > {other}] =', np.format_float_positional(s,14,trim='-'))
+        if PRINT_COMPARISONS:
+            print(f'P[{self} > {other}] =', np.format_float_positional(s,14,trim='-'))
         return die([1-s,s],0,f'[{self} > {other}]', True)
         # return self
 
@@ -350,14 +371,16 @@ class die:
             a = self.arr
             a = a[np.indices(a.shape)[0]+self.start >= other]
             s = np.sum(a)
-            print(f'P[{self} >= {other}] =', np.format_float_positional(s,14,trim='-'))
+            if PRINT_COMPARISONS:
+                print(f'P[{self} >= {other}] =', np.format_float_positional(s,14,trim='-'))
             return die([1-s,s],0,f'[{self} >= {other}]', True)
             # return self
         t = self-other
         a = t.arr
         a = a[np.indices(a.shape)[0]+t.start >= 0]
         s = np.sum(a)
-        print(f'P[{self} >= {other}] =', np.format_float_positional(s,14,trim='-'))
+        if PRINT_COMPARISONS:
+            print(f'P[{self} >= {other}] =', np.format_float_positional(s,14,trim='-'))
         return die([1-s,s],0,f'[{self} >= {other}]', True)
 
 def ndm(n, m):
@@ -376,7 +399,7 @@ def ndm(n, m):
 
 def process_input(text):
     '''
-    Internal function, processes, calls eval on the input text, and plots if possible.
+    Internal function. Processes then calls eval on text, plotting if possible.
     '''
     new_text = re.sub('\s', ' ', text)
     new_text = re.sub(r'[)]d', r')@1d', new_text)
@@ -388,7 +411,7 @@ def process_input(text):
     if x is None:
         print('Nothing to plot.')
     else:
-        plot(eval(new_text), text)
+        plot(x, text)
 
 def min0(d):
     '''
@@ -448,7 +471,7 @@ def var(d):
     '''Internal function, returns the variance of a die class object.'''
     x = np.arange(d.start, d.start+len(d.arr))
     mu = mean(d)
-    return np.sum(d.arr * (x-mu)**2)
+    return max(np.sum(d.arr * (x-mu)**2), 0.0)
 
 def sd(d):
     '''Internal function, returns the standard deviation of a die class object.'''
@@ -544,7 +567,7 @@ def multiply_pmfs(x, y):
     upper_bound = np.max(temp)
     arr = [0.0]*(upper_bound-lower_bound+1)
     arr = my_c.multiply_pmfs(arr, x.arr, y.arr, x_min, y_min, lower_bound)
-    return die(arr, lower_bound, f'{x}*{y}')
+    return die(arr, lower_bound, f'{x}*{y}', True)
 
 def bin_coeff(n, k):
     '''Internal function, returns the binomial coefficient.'''
@@ -576,7 +599,7 @@ def order_stat(x, num=1, pos=1):
         temp = (1-x_cdf)**j * x_cdf**(n-j) - (1-x_cdf+x_pmf)**j * (x_cdf - x_pmf)**(n-j)
         temp *= bin_coeff(n,j)
         pmf += temp
-    return die(pmf, x.start, f'(order({x}, {num}, {pos})', False)
+    return die(pmf, x.start, f'order({x}, {num}, {pos})', True)
 
 order = order_stat
 
@@ -602,9 +625,9 @@ def highest(x, n=2):
         if x.basicName:
             out_str = f'highest({x}, {n})'
         else:
-            out_str = f'highest{x}'
+            out_str = f'highest({x})'
             out_str = out_str[-1] + f', {n})'
-    return die(pmf, x.start, out_str)
+    return die(pmf, x.start, out_str, True)
 
 def adv(x):
     '''
@@ -637,9 +660,9 @@ def lowest(x, n=2):
         if x.basicName:
             out_str = f'lowest({x}, {n})'
         else:
-            out_str = f'lowest{x}'
+            out_str = f'lowest({x})'
             out_str = out_str[-1] + f', {n})'
-    return die(pmf, x.start, out_str)
+    return die(pmf, x.start, out_str, True)
 
 def disadv(x):
     '''
@@ -721,6 +744,77 @@ def choice(condition, *args):
     out_string += ')'
     return die(out, lb, out_string, True)
 
+def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=0, crit_range=20, adv=0, no_crit_damage=False):
+    '''
+    Returns the damage distribution of making an attack using DnD 5e rules.
+    bonus: The attack's to-hit bonus. Can be a number or die object.
+    ac: The target's armor class. Can be a number or die object.
+    damage: The attack's damage dice, so the part that's doubled on crits.
+    damage_bonus: The attack's damage bonus, so the part that isn't doubled on
+                  crits.
+    extra_dice: Additional damage to add on crits.
+    crit_range: The attack crits if the roll (not including bonuses) is at least
+                crit_range.
+    adv: 0 for a normal attack, True or 1 for advantage, -1 for disadvantage.
+         2 or -2 for double adv/disadv, respectively, 3 or -3 for triple, etc.
+    no_crit_damage: True changes crits to not deal extra damage, so they're just
+                    guaranteed hits.
+    '''
+    global PRINT_COMPARISONS
+    PRINT_COMPARISONS = False
+    d20 = die(ndm(1,20), 1, '1d20', True)
+    pos_val = 1 if (adv <= 0) else abs(adv)+1
+    d20_roll = order_stat(d20, abs(adv)+1, pos_val)
+    attack_roll = d20_roll + bonus
+    attack_roll.basicName = True
+    p_crit = (d20_roll >= crit_range)[1]
+    # We want P(miss because natural 1)
+    # =P(attack roll >= ac|nat 1)*P(nat 1)
+    blocked_hit = (bonus+1) >= ac
+    if not is_number(blocked_hit):
+        ac.basicName = True
+        blocked_hit = blocked_hit[1]
+    p_relevant_nat1 = blocked_hit * (d20_roll == 1)[1]
+    # the previous line is either a number or a die object
+    # if it's a number, we're done. If it's a die object,
+    # we need the following line to convert it into a number
+    if not is_number(bonus):
+        p_relevant_nat1 = p_relevant_nat1[1]
+    p_regular_hit = (attack_roll >= ac)[1] - p_crit - p_relevant_nat1
+    # In some cases a regular hit is impossible, ie AC 100
+    p_regular_hit = max(0.0, p_regular_hit)
+    p_miss = 1.0-p_regular_hit-p_crit
+    regular_dmg = damage + damage_bonus
+    regular_dmg.basicName = True
+    crit_dmg = None
+    if no_crit_damage:
+        crit_dmg = regular_dmg
+    else:
+        crit_dmg = regular_dmg + damage + extra_dice
+    out = choice([p_miss, p_regular_hit, p_crit], 0, regular_dmg, crit_dmg)
+    attack_str = str(attack_roll).replace('+0', '')
+    dmg_str = str(regular_dmg).replace('+0', '')
+    ac_str = str(ac).replace('+0', '')
+    match = re.search(r'\+[1-9][0-9]*$', ac_str)
+    if match:
+        temp1 = match.group()[1:]
+        temp2 = ac_str[:match.start()]
+        if temp1[0] == '-':
+            temp = temp1[1:]
+        ac_str = f'{temp1}+{temp2}'
+    out.name = f'[{attack_str} vs AC {ac_str} dealing {dmg_str}'
+    if crit_range != 20:
+        out.name += f' (crit range {crit_range})'
+    if no_crit_damage:
+        out.name += " (crits deal regular damage)"
+    elif extra_dice != 0:
+        out.name += f', (enhanced crits deal extra {extra_dice})'
+    out.name += ']'
+    PRINT_COMPARISONS = True
+    return out
+
+crit = attack
+
 def int_div_to_0(x, n):
     '''
     Internal function. Equivalent to x//n except negative values round towards 0.
@@ -801,6 +895,15 @@ Available things:
  4d6dl or '4d6 drop lowest':
    This gives the distribution of 4d6 with the lowest die removed.
 
+ attack or crit:
+   This calculates everything related to a DnD 5e attack roll, including crits, expanded
+   crit range, extra crit damage
+   Basic syntax: crit(attack_bonus, enemy_ac, damage_dice, damage_bonus)
+   Ex: attack(4, 16, 2d6, 3) for an attack with +4 to hit that deals 2d6+3 vs AC 16
+   Ex: crit(4+1d4, 16, 2d6, 3, adv=True) for an attack with advantage, with
+       +4+1d4 to hit, dealing 2d6+3 vs AC 16
+   Enter "help attack" for more advanced usage of this function.
+
  @:
    More advanced version of (1d4)d6. If an attack hits 1d6 times, and each hit
    deals 2d10+1d4, then you can write that as 1d6 @ (2d10+1d4).
@@ -810,7 +913,7 @@ Available things:
    Syntax 1: choice(condition, if_false, if_true)
    Syntax 2: choice(probability_of_true, if_false, if_true)
    Syntax 3: choice(distribution, value1, value2, ...)
-   enter "help choice" for other ways to use choice()'''
+   Enter "help choice" for other ways to use choice'''
 
 choice_help = '''
 Syntax 1: choice(condition, if_false, if_true)
@@ -835,6 +938,25 @@ returning 1d6 if you got 2, 1d8 if you got 3, and 1d10 if you got 4.
 Ex: choice([.2, .5, .3], 1d4, 1d6, 1d8) means 
 1d4 with probability .2, 1d6 with probability .5, and 1d8 with probability .3'''
 
+attack_help = '''
+Syntax:
+attack(bonus, ac, damage, damage_bonus, [extra_dice, crit_range, adv, no_crit_damage])
+The arguments in [...] are optional but must be supplied by name, after all
+of the mandatory arguments, ie:
+attack(4, 16, 1d6, 3, crit_range=19, adv=True).
+
+Arguments:
+bonus: The attack bonus, ie 4 or 4+1d4
+ac: The target AC, ie 16 or 14+1d8
+damage: The damage dice, ie 2d6
+damage_bonus: The fixed number always added to the damage, ie 3
+extra_dice: Additional dice added to crits, for features like brutal critical
+crit_range: The attack crits on a d20 roll of this number or higher
+adv: 1 or True for advantage, 2 for double advantage, 3 for triple advantage, etc.
+     -1 for disadvantage, -2 for double disadvantage, etc
+no_crit_damage: If True, all bonus damage for crits is blocked. This means that
+                crits auto-hit but deal regular attack damage.'''
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         process_input(' '.join(sys.argv[1:]))
@@ -850,6 +972,9 @@ if __name__ == '__main__':
             continue
         if text.lower() == 'help choice' or text.lower() == '"help choice"':
             print(choice_help)
+            continue
+        if text.lower() == 'help attack' or text.lower() == '"help attack"':
+            print(attack_help)
             continue
         if len(text) > 0:
             try:
