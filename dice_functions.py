@@ -304,9 +304,9 @@ def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=None, crit_range=20,
     if crit_range != 20:
         out.name += f' (crit range {crit_range})'
     if no_crit_damage:
-        out.name += " (crits deal regular damage)"
-    elif extra_dice is not None:
-        out.name += f', (enhanced crits deal extra {extra_dice})'
+        out.name += " (crits don't deal extra damage)"
+    elif extra_dice is not None and not no_crit_damage:
+        out.name += f' (enhanced crits deal extra {extra_dice})'
     out.name += ']'
     PRINT_COMPARISONS[0] = True
     return out
