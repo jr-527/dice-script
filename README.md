@@ -19,8 +19,8 @@ Further instructions will then be displayed.
 
 You can also run things through the command line arguments
 ```
-python dice.py help
 python dice.py 3d4 - 2
+python dice.py 3d4-2
 ```
 ## License
 
