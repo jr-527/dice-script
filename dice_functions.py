@@ -255,7 +255,7 @@ def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=0, crit_range=20, ad
                     guaranteed hits.
     '''
     global PRINT_COMPARISONS
-    PRINT_COMPARISONS = False
+    PRINT_COMPARISONS[0] = False
     d20 = die(ndm(1,20), 1, '1d20', True)
     pos_val = 1 if (adv <= 0) else abs(adv)+1
     d20_roll = order_stat(d20, abs(adv)+1, pos_val)
@@ -305,7 +305,7 @@ def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=0, crit_range=20, ad
     elif extra_dice != 0:
         out.name += f', (enhanced crits deal extra {extra_dice})'
     out.name += ']'
-    PRINT_COMPARISONS = True
+    PRINT_COMPARISONS[0] = True
     return out
 
 crit = attack
@@ -317,7 +317,7 @@ def check(bonus, dc, adv=0):
     the attack function.
     '''
     global PRINT_COMPARISONS
-    PRINT_COMPARISONS = False
+    PRINT_COMPARISONS[0] = False
     d20 = die(ndm(1,20), 1, '1d20', True)
     pos_val = 1 if (adv <= 0) else abs(adv)+1
     d20_roll = order_stat(d20, abs(adv)+1, pos_val)
@@ -331,7 +331,7 @@ def check(bonus, dc, adv=0):
     roll_with_bonus = d20_roll + bonus
     roll_with_bonus.basicName = True
     p_succeed = (roll_with_bonus >= dc)[1] - p_relevant_nat1
-    PRINT_COMPARISONS = True
+    PRINT_COMPARISONS[0] = True
     return die([1-p_succeed, p_succeed], 0, f'[{roll_with_bonus} vs DC {dc}]', True)
 
 save = check

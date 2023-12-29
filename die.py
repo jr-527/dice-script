@@ -4,7 +4,7 @@ import my_c_importer as my_c
 import re
 # warnings.filterwarnings('ignore', 'elementwise comparison failed')
 
-PRINT_COMPARISONS = True
+PRINT_COMPARISONS = [True]
 
 class die:
     '''
@@ -250,7 +250,7 @@ class die:
             a = self.arr
             a = a[np.indices(a.shape)[0] + self.start == other]
             s = np.sum(a)
-            if PRINT_COMPARISONS:
+            if PRINT_COMPARISONS[0]:
                 print(f'P[{self} = {other}] =', np.format_float_positional(s,14,trim='-'))
             return die([1-s,s],0,f'[{self} = {other}]')
             # return self
@@ -258,7 +258,7 @@ class die:
         a = t.arr
         a = a[np.indices(a.shape)[0]+t.start == 0]
         s = np.sum(a)
-        if PRINT_COMPARISONS:
+        if PRINT_COMPARISONS[0]:
             print(f'P[{self} = {other}] =', np.format_float_positional(s,14,trim='-'))
         return die([1-s,s],0,f'[{self} = {other}]')
         # return self
@@ -276,7 +276,7 @@ class die:
             a = self.arr
             a = a[np.indices(a.shape)[0]+self.start < other]
             s = np.sum(a)
-            if PRINT_COMPARISONS:
+            if PRINT_COMPARISONS[0]:
                 print(f'P[{self} < {other}] =', np.format_float_positional(s,14,trim='-'))
             return die([1-s,s],0,f'[{self} < {other}]', True)
             # return self
@@ -284,7 +284,7 @@ class die:
         a = t.arr
         a = a[np.indices(a.shape)[0]+t.start < 0]
         s = np.sum(a)
-        if PRINT_COMPARISONS:
+        if PRINT_COMPARISONS[0]:
             print(f'P[{self} < {other}] =', np.format_float_positional(s,14,trim='-'))
         return die([1-s,s],0,f'[{self} < {other}]', True)
         # return self
@@ -303,7 +303,7 @@ class die:
             a = self.arr
             a = a[np.indices(a.shape)[0]+self.start <= other]
             s = np.sum(a)
-            if PRINT_COMPARISONS:
+            if PRINT_COMPARISONS[0]:
                 print(f'P[{self} <= {other}] =', np.format_float_positional(s,14,trim='-'))
             return die([1-s,s],0,f'[{self} <= {other}]', True)
             # return self
@@ -311,7 +311,7 @@ class die:
         a = t.arr
         a = a[np.indices(a.shape)[0]+t.start <= 0]
         s = np.sum(a)
-        if PRINT_COMPARISONS:
+        if PRINT_COMPARISONS[0]:
             print(f'P[{self} <= {other}] =', np.format_float_positional(s,14,trim='-'))
         return die([1-s,s],0,f'[{self} <= {other}]', True)
         # return self
@@ -329,7 +329,7 @@ class die:
             a = self.arr
             a = a[np.indices(a.shape)[0]+self.start > other]
             s = np.sum(a)
-            if PRINT_COMPARISONS:
+            if PRINT_COMPARISONS[0]:
                 print(f'P[{self} > {other}] =', np.format_float_positional(s,14,trim='-'))
             return die([1-s,s],0,f'[{self} > {other}]', True)
             # return self
@@ -337,7 +337,7 @@ class die:
         a = t.arr
         a = a[np.indices(a.shape)[0]+t.start > 0]
         s = np.sum(a)
-        if PRINT_COMPARISONS:
+        if PRINT_COMPARISONS[0]:
             print(f'P[{self} > {other}] =', np.format_float_positional(s,14,trim='-'))
         return die([1-s,s],0,f'[{self} > {other}]', True)
         # return self
@@ -355,7 +355,7 @@ class die:
             a = self.arr
             a = a[np.indices(a.shape)[0]+self.start >= other]
             s = np.sum(a)
-            if PRINT_COMPARISONS:
+            if PRINT_COMPARISONS[0]:
                 print(f'P[{self} >= {other}] =', np.format_float_positional(s,14,trim='-'))
             return die([1-s,s],0,f'[{self} >= {other}]', True)
             # return self
@@ -363,7 +363,7 @@ class die:
         a = t.arr
         a = a[np.indices(a.shape)[0]+t.start >= 0]
         s = np.sum(a)
-        if PRINT_COMPARISONS:
+        if PRINT_COMPARISONS[0]:
             print(f'P[{self} >= {other}] =', np.format_float_positional(s,14,trim='-'))
         return die([1-s,s],0,f'[{self} >= {other}]', True)
 

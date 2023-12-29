@@ -100,13 +100,13 @@ if __name__ == '__main__':
             print('Getting started: Try typing 2d6+3 or 8d6/2.')
             print(dice_strings.help_string)
             continue
-        if text.lower() in ('help advanced', 'h advanced', '? advanced', '"help advanced"'):
+        if text.lower() in ('help advanced', 'h advanced', '?advanced', '? advanced', '"help advanced"'):
             print(dice_strings.help_advanced)
             continue
-        if text.lower() in ('help choice', 'h choice', '? choice', '"help choice"'):
+        if text.lower() in ('help choice', 'h choice', '?choice', '? choice', '"help choice"'):
             print(dice_strings.choice_help)
             continue
-        if text.lower() in ('help attack', 'h attack', '? attack', '"help attack"'):
+        if text.lower() in ('help attack', 'h attack', '?attack', '? attack', '"help attack"'):
             print(dice_strings.attack_help)
             continue
         if len(text) > 0 and not text.isspace():
