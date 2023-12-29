@@ -238,7 +238,7 @@ def choice(condition, *args):
     out_string += ')'
     return die(out, lb, out_string, True)
 
-def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=0, crit_range=20, adv=0, no_crit_damage=False):
+def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=None, crit_range=20, adv=0, no_crit_damage=False):
     '''
     Returns the damage distribution of making an attack using DnD 5e rules.
     bonus: The attack's to-hit bonus. Can be a number or die object.
@@ -272,7 +272,7 @@ def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=0, crit_range=20, ad
     # the previous line is either a number or a die object
     # if it's a number, we're done. If it's a die object,
     # we need the following line to convert it into a number
-    if not is_number(bonus):
+    if not is_number(p_relevant_nat1):
         p_relevant_nat1 = p_relevant_nat1[1]
     p_regular_hit = (attack_roll >= ac)[1] - p_crit - p_relevant_nat1
     # In some cases a regular hit is impossible, ie AC 100
@@ -285,7 +285,10 @@ def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=0, crit_range=20, ad
     if no_crit_damage:
         crit_dmg = regular_dmg
     else:
-        crit_dmg = regular_dmg + damage + extra_dice
+        if extra_dice is None:
+            crit_dmg = regular_dmg + damage
+        else:    
+            crit_dmg = regular_dmg + damage + extra_dice
     out = choice([p_miss, p_regular_hit, p_crit], 0, regular_dmg, crit_dmg)
     attack_str = str(attack_roll).replace('+0', '')
     dmg_str = str(regular_dmg).replace('+0', '')
@@ -302,7 +305,7 @@ def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=0, crit_range=20, ad
         out.name += f' (crit range {crit_range})'
     if no_crit_damage:
         out.name += " (crits deal regular damage)"
-    elif extra_dice != 0:
+    elif extra_dice is not None:
         out.name += f', (enhanced crits deal extra {extra_dice})'
     out.name += ']'
     PRINT_COMPARISONS[0] = True
