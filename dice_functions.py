@@ -310,11 +310,13 @@ def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=0, crit_range=20, ad
 
 crit = attack
 
-def check(bonus, dc, adv=0):
+def check(bonus, dc, adv=0, *, succeed=None, fail=None):
     '''
     Returns the distribution of passing/failing a check, with the specified bonus,
     against the specified DC, possibly with advantage/disadvantage. Similar to
     the attack function.
+    If succeed and fail are specified, then this returns the distribution of
+    attempting the check, rolling succeed if it passes and fail if it fails.
     '''
     global PRINT_COMPARISONS
     PRINT_COMPARISONS[0] = False
@@ -332,7 +334,12 @@ def check(bonus, dc, adv=0):
     roll_with_bonus.basicName = True
     p_succeed = (roll_with_bonus >= dc)[1] - p_relevant_nat1
     PRINT_COMPARISONS[0] = True
-    return die([1-p_succeed, p_succeed], 0, f'[{roll_with_bonus} vs DC {dc}]', True)
+    out = die([1-p_succeed, p_succeed], 0, f'[{roll_with_bonus} vs DC {dc}]', True)
+    if succeed is not None and fail is not None:
+        out = choice(out, succeed, fail)
+        out.name = f'[{roll_with_bonus} vs DC {dc}, success: {succeed}, fail: {fail}]'
+        out.basicName = True
+    return out
 
 save = check
 

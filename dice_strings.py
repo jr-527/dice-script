@@ -46,11 +46,16 @@ Advanced functions:
 
  check, save:
    This gives the probability of a DnD 5e ability check succeeding.
-   Syntax 1: check(bonus, dc)
-   Ex: check(6+1d4, 16)
-   Syntax 2: check(bonus, dc, adv)
+   Syntax 1: check(bonus, dc, [adv])
+   adv is optional.
    Set adv to True or 1 for advantage, 2 for double advantage, 3 for triple, etc
    -1 for disadvantage, -2 for double disadvantage, etc.
+   Ex: check(6+1d4, 16)
+   Ex: check(6, 16, True)
+   Syntax 2: check(bonus, dc, [adv], succeed=die1, fail=die2)
+   This gives the distribution of making the check then rolling die1 if it passes
+   and die2 if it fails.
+   Ex: save(6, 16, succeed=8d6/2, fail=8d6)
 
  attack or crit:
    This calculates everything related to a DnD 5e attack roll, including crits, expanded
