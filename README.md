@@ -4,23 +4,21 @@ For example, if you input the text ```15d12 * 3 + 3d4 * (2d6 - 1d10)``` this pro
 
 ## Installation
 
-Download the repository to your computer. Make sure that your Python installation has matplotlib and numpy, and that you're running a reasonably modern version of Python.  
-**Optional:**
-This repository uses code written in C to speed up a few operations. If Python cannot use the part written in C, it just falls back to a marginally slower Python implementation. In this case, when the program starts it will print a line to console saying that something went wrong importing the C stuff.
-I have provided a compiled 64 bit dll that works on my version of Windows. In order to use the C code on other operating systems, you should compile helpers.c to your operating system's equivalent of .dll (probably .so for linux) and change helpers.c line 26 to refer to the compiled file. I haven't tried this on anything other than Windows, so no guarantees that it works.
+Download the repository to your computer. Make sure that your Python installation has matplotlib and numpy, and that you're running Python 3.3 or above.  
+This repository uses code written in C to speed up a few operations. I have provided compiled 64 bit .dll and .so files that work on my version of Windows 11 and Ubuntu through WSL2. If they don't work properly on your machine, my Python code falls back to a marginally slower Python implementation and prints a line saying as much on startup.
 
 ## Usage
 
-To get started, run dice.py through a command line.
+To get started, run dice.py through a command line. You might have to write python3 instead of python.
 ```
-python dice.py
+python ./dice.py
 ```
 Further instructions will then be displayed.
 
 You can also run things through the command line arguments
 ```
-python dice.py 3d4 - 2
-python dice.py 3d4-2
+python ./dice.py 3d4 - 2
+python ./dice.py 3d4-2
 ```
 ## License
 
