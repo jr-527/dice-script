@@ -127,17 +127,28 @@ class die:
             if other == 0:
                 return self*0
             n = round(other)
-            x = pad(self.arr, self.start, n*(self.start + len(self.arr)))
-            out = np.fft.irfft(np.fft.rfft(x)**n, len(x))
-            # x = pad(self.arr, self.start, n*(self.start + len(self.arr))) * self.denominator
-            # out = np.rint(np.fft.irfft(np.fft.rfft(x)**n, len(x))) / (self.denominator**n)
-            start, arr = trim(out)
-            # we correct for arr still sometimes being too long
-            max_a = n*(self.start+len(self.arr)-1)
-            actual_a = start + len(arr) - 1
-            if max_a < actual_a:
-                arr = arr[:max_a - actual_a]
-            return die(arr, start, f'{other} @ {self}', False)
+            out = 0
+            latest = self
+            mask = 1
+            while mask <= n:
+                if n & mask:
+                    out += latest
+                latest += latest
+                mask *= 2
+            # I couldn't get the following code to work with negative values
+            # so we'll do it the above way using multiplication-by-doubling,
+            # which is slower by a factor of log(n) I think but it'll do.
+            # x = pad(self.arr, self.start, n*(self.start + len(self.arr)))
+            # out = np.fft.irfft(np.fft.rfft(x)**n, len(x))
+            # # x = pad(self.arr, self.start, n*(self.start + len(self.arr))) * self.denominator
+            # # out = np.rint(np.fft.irfft(np.fft.rfft(x)**n, len(x))) / (self.denominator**n)
+            # start, arr = trim(out)
+            # # we correct for arr still sometimes being too long
+            # max_a = n*(self.start+len(self.arr)-1)
+            # actual_a = start + len(arr) - 1
+            # if max_a < actual_a:
+            #     arr = arr[:max_a - actual_a]
+            return die(out.arr, out.start, f'{other} @ {self}', False)
         if type(other) == type(self):
             ss = self.start
             se = self.start + len(self.arr)
