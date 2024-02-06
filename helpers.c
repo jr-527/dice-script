@@ -1,4 +1,4 @@
-__declspec(dllexport)
+//__declspec(dllexport) // uncomment on Windows for MSVC
 void multiply_pmfs(double* out, double* x, int len_x, double* y, int len_y,
                    int x_min, int y_min, int lower_bound) {
     int j = 0;
@@ -11,7 +11,7 @@ void multiply_pmfs(double* out, double* x, int len_x, double* y, int len_y,
     }
 }
 
-__declspec(dllexport)
+//__declspec(dllexport)
 void pmf_times_int(double* out, double* in, int len_in, int factor) {
     for (int i = 0; i < len_in; i++) {
         out[i*factor] = in[i];
