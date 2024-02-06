@@ -127,28 +127,18 @@ class die:
             if other == 0:
                 return self*0
             n = round(other)
-            out = 0
-            latest = self
-            mask = 1
-            while mask <= n:
-                if n & mask:
-                    out += latest
-                latest += latest
-                mask *= 2
-            # I couldn't get the following code to work with negative values
-            # so we'll do it the above way using multiplication-by-doubling,
-            # which is slower by a factor of log(n) I think but it'll do.
-            # x = pad(self.arr, self.start, n*(self.start + len(self.arr)))
-            # out = np.fft.irfft(np.fft.rfft(x)**n, len(x))
-            # # x = pad(self.arr, self.start, n*(self.start + len(self.arr))) * self.denominator
-            # # out = np.rint(np.fft.irfft(np.fft.rfft(x)**n, len(x))) / (self.denominator**n)
-            # start, arr = trim(out)
-            # # we correct for arr still sometimes being too long
-            # max_a = n*(self.start+len(self.arr)-1)
-            # actual_a = start + len(arr) - 1
-            # if max_a < actual_a:
-            #     arr = arr[:max_a - actual_a]
-            return die(out.arr, out.start, f'{other} @ {self}', False)
+            # out = 0
+            # latest = self
+            # mask = 1
+            # while mask <= n:
+            #     if n & mask:
+            #         out += latest
+            #     latest += latest
+            #     mask *= 2
+            x = np.append(self.arr, [0]*(len(self.arr)-1)*(n-1))
+            x = np.fft.irfft(np.fft.rfft(x)**n, len(x))
+            start = n*self.start
+            return die(x, n*self.start, f'{other}@{self}', False)
         if type(other) == type(self):
             ss = self.start
             se = self.start + len(self.arr)
@@ -169,20 +159,16 @@ class die:
                 # the forward FFT of other with each iteration of this loop, but it would
                 # be a ton of work and wouldn't quite halve the run time of this function,
                 # so I won't bother.
-                if temp.start != other.start*(i+ss):
-                    # This handles weird floating point rounding issues, I think.
-                    diff = other.start*(i+ss) - temp.start
-                    temp.arr = temp.arr[diff:]
-                    temp.start += diff
-                x = np.concatenate( # np.concatenate is unwieldy compared to R's c()
-                    (
-                        [0.0] * (temp.start-min_a),
-                        temp.arr*p,
-                        [0.0] * (1+max_a-(temp.start+len(temp.arr)))
-                    ),
-                    axis = None
-                )
-                out_arr = out_arr + x
+                # x = np.concatenate( # np.concatenate is unwieldy compared to R's c()
+                #     (
+                #         [0.0] * (temp.start-min_a),
+                #         temp.arr*p,
+                #         [0.0] * (1+max_a-(temp.start+len(temp.arr)))
+                #     ),
+                #     axis = None
+                # )
+                # out_arr = out_arr + x
+                out_arr[temp.start-min_a:temp.start-min_a+len(temp.arr)] += p*temp.arr
             return die(out_arr, min_a, f'{self} @ {other}', False)
 
     def __rmatmul__(self, other):

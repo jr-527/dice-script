@@ -23,7 +23,12 @@ def arr_to_c(arr):
     return np.ctypeslib.as_ctypes(np.array(arr))
 
 try:
-    dll = ct.CDLL(os.path.join(sys.path[0], 'helpers.dll'))
+    lib_path = ''
+    if os.name == 'nt':
+        lib_path = 'helpers.dll'
+    elif os.name == 'posix':
+        lib_path = 'helpers.so'
+    dll = ct.CDLL(os.path.join(sys.path[0], lib_path))
     dll.multiply_pmfs.argtypes = (
         d_arr,
         d_arr, ct.c_int,

@@ -9,7 +9,6 @@ plt = None # For asynchronous importing, to start up more quickly
 import threading
 import re
 import warnings
-import ctypes as ct
 import traceback
 warnings.filterwarnings('ignore', 'elementwise comparison failed')
 
@@ -21,10 +20,8 @@ def import_plt():
     plt_initialized = True
 import_thread = threading.Thread(target=import_plt, name='import matplotlib')
 import_thread.start()
-try:
-    ct.windll.kernel32.SetConsoleTitleW('Dice Script')
-except Exception:
-    pass
+print('\33]0;Dice Script\a', end='')
+sys.stdout.flush()
 
 def process_input(text):
     '''
@@ -37,6 +34,9 @@ def process_input(text):
     new_text = re.sub(r'([1-9][0-9]*)d([1-9][0-9]*)',
         r'die(ndm(int(\1),int(\2)),int(\1),"\1d\2", True)', new_text)
     x = eval(new_text)
+    if is_number(x) or isinstance(x, np.bool_):
+        print('Numeric result:', x)
+        x = None
     if x is None:
         print('Nothing to plot.')
     else:
@@ -54,9 +54,8 @@ def plot(d, name=None):
     if not plt_initialized:
         import_thread.join()
         plt_initialized = True
-    if is_number(d):
-        d = round(d)
-        d = die([1], d, 1)
+    if hasattr(d, '__len__'):
+        d = die(d, 0)
     print(f'Mean: {round(mean(d),4)}, standard deviation: {round(sd(d),4)}')
     print(f'Random sample from distribution: {sample(d)}')
     fig, ax = plt.subplots()
