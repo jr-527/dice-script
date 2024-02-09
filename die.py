@@ -375,7 +375,12 @@ def ndm(n, m):
     x = [1.0]*m + [0.0]*m*(n-1)
     if n == 1:
         return np.array(x)/m
-    out = np.rint(np.fft.irfft(np.fft.rfft(x)**n, len(x))) / float(m**n)
+    out = None
+    try:
+        f = float(m**n)
+        out = np.rint(np.fft.irfft(np.fft.rfft(x)**n, len(x))) / f
+    except OverflowError:
+        out = np.fft.irfft(np.fft.rfft(x/np.sum(x))**n, len(x))
     return out[:-(n-1)]
 
 def is_number(x):
