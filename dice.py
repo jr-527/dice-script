@@ -56,8 +56,14 @@ def plot(d, name=None):
         plt_initialized = True
     if hasattr(d, '__len__'):
         d = die(d, 0)
-    print(f'Mean: {round(mean(d),4)}, standard deviation: {round(sd(d),4)}')
-    print(f'Random sample from distribution: {sample(d)}')
+    if not d.isProbability:
+        print(f'Mean: {round(mean(d),4)}, standard deviation: {round(sd(d),4)}')
+        print(f'Random sample from distribution: {sample(d)}')
+    else:
+        print(f'Probability: {round(mean(d),4)}, standard deviation: {round(sd(d),4)}')
+        s = int(sample(d))
+        s = (f'{s} (Pass)') if s else (f'{s} (Fail)')
+        print(f'Random sample from distribution:', s)
     fig, ax = plt.subplots()
     if name:
         if '=' in name or '<' in name or '>' in name:

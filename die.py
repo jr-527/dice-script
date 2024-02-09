@@ -4,7 +4,7 @@ import my_c_importer as my_c
 import re
 # warnings.filterwarnings('ignore', 'elementwise comparison failed')
 
-PRINT_COMPARISONS = [True]
+PRINT_COMPARISONS = [False]
 
 class die:
     '''
@@ -21,7 +21,7 @@ class die:
     '''
     # Immutable. All methods should return an object.
     # Invariant: self.arr is a valid PMF
-    def __init__(self, arr, start, name=None, basicName=False):
+    def __init__(self, arr, start, name=None, basicName=False, isProbability=False):
         '''
         arr: A list or numpy array that's a valid PMF (non-negative numbers which sum to 1)
         start: An integer, the offset for the first non-zero value in arr,
@@ -33,6 +33,7 @@ class die:
         self.start += start
         self.name = re.sub('\+\-', '-', str(name))
         self.name = re.sub('\-\-', '+', self.name)
+        self.isProbability = isProbability
         if len(self.name) > 0 and self.name[0] == '+':
             self.name = self.name[1:]
         self.basicName = basicName
@@ -249,7 +250,7 @@ class die:
             s = np.sum(a)
             if PRINT_COMPARISONS[0]:
                 print(f'P[{self} = {other}] =', np.format_float_positional(s,14,trim='-'))
-            return die([1-s,s],0,f'[{self} = {other}]')
+            return die([1-s,s], 0, f'[{self} = {other}]', isProbability=True)
             # return self
         t = self-other
         a = t.arr
@@ -257,7 +258,7 @@ class die:
         s = np.sum(a)
         if PRINT_COMPARISONS[0]:
             print(f'P[{self} = {other}] =', np.format_float_positional(s,14,trim='-'))
-        return die([1-s,s],0,f'[{self} = {other}]')
+        return die([1-s,s], 0, f'[{self} = {other}]', isProbability=True)
         # return self
 
     def __lt__(self, other):
@@ -275,7 +276,7 @@ class die:
             s = np.sum(a)
             if PRINT_COMPARISONS[0]:
                 print(f'P[{self} < {other}] =', np.format_float_positional(s,14,trim='-'))
-            return die([1-s,s],0,f'[{self} < {other}]', True)
+            return die([1-s,s], 0, f'[{self} < {other}]', True, isProbability=True)
             # return self
         t = self-other
         a = t.arr
@@ -283,7 +284,7 @@ class die:
         s = np.sum(a)
         if PRINT_COMPARISONS[0]:
             print(f'P[{self} < {other}] =', np.format_float_positional(s,14,trim='-'))
-        return die([1-s,s],0,f'[{self} < {other}]', True)
+        return die([1-s,s], 0, f'[{self} < {other}]', True, isProbability=True)
         # return self
 
     
@@ -302,7 +303,7 @@ class die:
             s = np.sum(a)
             if PRINT_COMPARISONS[0]:
                 print(f'P[{self} <= {other}] =', np.format_float_positional(s,14,trim='-'))
-            return die([1-s,s],0,f'[{self} <= {other}]', True)
+            return die([1-s,s], 0, f'[{self} <= {other}]', True, isProbability=True)
             # return self
         t = self-other
         a = t.arr
@@ -310,7 +311,7 @@ class die:
         s = np.sum(a)
         if PRINT_COMPARISONS[0]:
             print(f'P[{self} <= {other}] =', np.format_float_positional(s,14,trim='-'))
-        return die([1-s,s],0,f'[{self} <= {other}]', True)
+        return die([1-s,s], 0, f'[{self} <= {other}]', True, isProbability=True)
         # return self
 
     def __gt__(self, other):
@@ -328,7 +329,7 @@ class die:
             s = np.sum(a)
             if PRINT_COMPARISONS[0]:
                 print(f'P[{self} > {other}] =', np.format_float_positional(s,14,trim='-'))
-            return die([1-s,s],0,f'[{self} > {other}]', True)
+            return die([1-s,s], 0, f'[{self} > {other}]', True, isProbability=True)
             # return self
         t = self-other
         a = t.arr
@@ -336,7 +337,7 @@ class die:
         s = np.sum(a)
         if PRINT_COMPARISONS[0]:
             print(f'P[{self} > {other}] =', np.format_float_positional(s,14,trim='-'))
-        return die([1-s,s],0,f'[{self} > {other}]', True)
+        return die([1-s,s], 0, f'[{self} > {other}]', True, isProbability=True)
         # return self
 
     def __ge__(self, other):
@@ -354,7 +355,7 @@ class die:
             s = np.sum(a)
             if PRINT_COMPARISONS[0]:
                 print(f'P[{self} >= {other}] =', np.format_float_positional(s,14,trim='-'))
-            return die([1-s,s],0,f'[{self} >= {other}]', True)
+            return die([1-s,s], 0, f'[{self} >= {other}]', True, isProbability=True)
             # return self
         t = self-other
         a = t.arr
@@ -362,7 +363,7 @@ class die:
         s = np.sum(a)
         if PRINT_COMPARISONS[0]:
             print(f'P[{self} >= {other}] =', np.format_float_positional(s,14,trim='-'))
-        return die([1-s,s],0,f'[{self} >= {other}]', True)
+        return die([1-s,s], 0, f'[{self} >= {other}]', True, isProbability=True)
 
 def ndm(n, m):
     '''
