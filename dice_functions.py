@@ -392,3 +392,53 @@ def sample(d):
     '''
     u = np.random.default_rng().random()
     return d.start + np.where(np.cumsum(d.arr) >= u)[0][0]
+
+def multiple_inequality(*args):
+    '''
+    Internal function for evaluating chained inequalities.
+    Returns a number.
+    The first, third, fifth, ... arguments should be numbers or die objects
+    The second, fourth, sixth, ... arguments should be one of '>', '<', '>=',
+    '<=', '==', '!='.
+    ex: P(A <= B) == multiple_inequalities(A, '<=', B)
+        P(A < B == C) == multiple_inequalities(A, '<', B, '==', C)
+        P(A < B < C < D) == multiple_inequalities(A, '<', B, '<', C, '<', D)
+    '''
+    # In Python, w < x <= y > z
+    # is equivalent to
+    # (w < x) and (x <= y) and (y > z)
+    # In pseudocode, for "w < x <= y > z == ...", this function does:
+    # out = 0
+    # for each possible value i of w:
+    #     for each possible value j of x:
+    #         for each possible value k of y:
+    #             for ...
+    #                 if i+w_start < j+x_start <= k+y_start > l+z_start == ...:
+    #                     out += P(w==i) * P(x==j) * P(y==k) * ...
+    # return out
+    operators = {'>':np.greater, '<':np.less, '>=':np.greater_equal,
+                 '<=':np.less_equal, '==':np.equal, '!=':np.not_equal}
+    arrs = [np.array([1.0]) if is_number(x) else x.arr for x in args[::2]]
+    starts = [x if is_number(x) else x.start for x in args[::2]]
+    ops = [operators[x] for x in args[1::2]]
+    # We use einsum to generalize np.outer for 3+ arrays.
+    # It performs the P(x=i)*P(y=j)*P(z=k)*... part of the pseudocode,
+    # but vectorized.
+    es_str = 'a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z'[:len(args)]
+    prod = np.einsum(es_str, *arrs)
+    # np.indices lets us keep track of i, j, k, ...
+    indices = np.indices(prod.shape)
+    # bools[i,j,k,...] = (i+w_start < j+x_start <= k+y_start > ...)
+    # ops[0]( ... -starts[0])) does the i < j check, but vectorized
+    # ops[1]( ... -starts[1])) does the j <= k check, but vectorized
+    # etc
+    # We use np.all(..., 0) to coalesce all that
+    # (0 corresponds to the "for i in range(len(ops))" axis)
+    bools = np.all(
+        [ops[i](
+            indices[i],
+            indices[i+1]+(starts[i+1]-starts[i]))
+        for i in range(len(ops))],
+        0)
+    # This does the "out +=" part of the pseudocode, but vectorized
+    return np.sum(bools * prod)

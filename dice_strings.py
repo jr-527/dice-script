@@ -21,9 +21,12 @@ Available things:
    results less than 2 are replaced with 2.
    Syntax: min0(die), min1(die), min_val(die, minimum)
 
- >, >=, <, <=, ==:
+ >, >=, <, <=, ==, !=:
    3d4 > 2d6 prints the probability that 3d4 > 2d6, and the other symbols are similar.
    Returns a probability distribution, where 1 represents true, 0 represents false.
+   You can chain these, ie 2 <= 1d20 <= 19 gives the probability of 1d20 giving between
+   2 and 19, 1d4 <= 1d20 < 12 the probability of rolling 1d4 and 1d20 and having the 1d20
+   be between the 1d4 (inclusive) and 12 (exclusive)
 
  4d6dl or '4d6 drop lowest':
    This gives the distribution of 4d6 with the lowest die removed.
