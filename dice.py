@@ -1,6 +1,7 @@
 from die import die, ndm, is_number
 import numpy as np
 from dice_functions import min0, min1, min_val, mean, var, sd, order_stat, order, highest, adv, advantage, lowest, disadv, dis, disadvantage, choice, attack, crit, check, save, reroll, sample, multiple_inequality
+from round_to_width import round_to_width as round_w
 import dice_strings
 import os
 import sys
@@ -79,7 +80,10 @@ def plot(d, name=None):
     if hasattr(d, '__len__'):
         d = die(d, 0)
     if d.isProbability:
-        print(f'Probability: {round(mean(d),4)}, standard deviation: {round(sd(d),4)}')
+        print('Probability:',
+            f"{round_w(mean(d),8,'left',leading_zero=True).strip()}",
+            'standard deviation:',
+            f"{round_w(sd(d),8,'left',leading_zero=True).strip()}")
         s = int(sample(d))
         s = (f'{s} (Succeed)') if s else (f'{s} (Fail)')
         print(f'Random sample from distribution:', s)
@@ -98,7 +102,10 @@ def plot(d, name=None):
         ax.legend()
         plt.show()
         return
-    print(f'Mean: {round(mean(d),4)}, standard deviation: {round(sd(d),4)}')
+    print('Mean:',
+        f"{round_w(mean(d),8,'left',leading_zero=True).strip()}",
+        'standard deviation:',
+        f"{round_w(sd(d),8,'left',leading_zero=True).strip()}")
     print(f'Random sample from distribution: {sample(d)}')
     if len(d.arr) == 1:
         print('Nothing to plot.')
