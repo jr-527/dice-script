@@ -29,11 +29,12 @@ def process_input(text):
     Internal function. Processes then calls eval on text, plotting if possible.
     '''
     new_text = re.sub('\s', ' ', text)
+    new_text = new_text.replace(' in ', '&')
     new_text = re.sub(r'[)]d', r')@1d', new_text)
     new_text = re.sub('(4d6dl)|(4d6 drop lowest)', 'stat_roll()', new_text)
     new_text = re.sub(r'\^', '**', new_text)
     new_text = re.sub(r'([1-9][0-9]*)d([1-9][0-9]*)',
-        r'die(ndm(int(\1),int(\2)),int(\1),"\1d\2", True)', new_text)
+        r'die(ndm(\1,\2),\1,"\1d\2", True)', new_text)
     # Python's parse rules mean eval can't properly process 2 < 1d20 < 19
     nts = re.split(r'(\>=|\>|\<=|\<|==|!=)', new_text) # "new text split"
     relations = ['>', '<', '>=', '<=', '==', '!=']
@@ -81,9 +82,9 @@ def plot(d, name=None):
         d = die(d, 0)
     if d.isProbability:
         print('Probability:',
-            f"{round_w(mean(d),8,'left',leading_zero=True).strip()}",
+            f"{round_w(mean(d),15,'left',leading_zero=True).strip()}",
             'standard deviation:',
-            f"{round_w(sd(d),8,'left',leading_zero=True).strip()}")
+            f"{round_w(sd(d),15,'left',leading_zero=True).strip()}")
         s = int(sample(d))
         s = (f'{s} (Succeed)') if s else (f'{s} (Fail)')
         print(f'Random sample from distribution:', s)
@@ -103,9 +104,9 @@ def plot(d, name=None):
         plt.show()
         return
     print('Mean:',
-        f"{round_w(mean(d),8,'left',leading_zero=True).strip()}",
+        f"{round_w(mean(d),15,'left',leading_zero=True).strip()}",
         'standard deviation:',
-        f"{round_w(sd(d),8,'left',leading_zero=True).strip()}")
+        f"{round_w(sd(d),15,'left',leading_zero=True).strip()}")
     print(f'Random sample from distribution: {sample(d)}')
     if len(d.arr) == 1:
         print('Nothing to plot.')
@@ -119,8 +120,31 @@ def plot(d, name=None):
         plt.title(name)
     y = d.arr
     cumulative = np.cumsum(y)
-    x = range(d.start, d.start+len(y))
-    ax.stem(x, y, label='Probability', basefmt='')
+    threshold_small_heads = 100
+    threshold_no_heads = 1000
+    threshold_continuous = 10000
+    if len(y) >= threshold_continuous:
+        col_size = int(len(y)/(threshold_continuous/2))
+        # reshape y to (col_size, ?)
+        new_cols = int(np.ceil(len(y)/col_size))
+        y = np.max( # resample by taking the max of every 5000 elements
+            np.pad(y, (0,new_cols*col_size-len(y))).reshape(new_cols, col_size),
+            1
+        )
+        new_cdf = np.pad(cumulative, (0,new_cols*col_size-len(cumulative)),
+            constant_values=cumulative[-1]).reshape(new_cols, col_size)
+        cumulative = new_cdf[:,-1]
+        x = np.arange(len(y))*col_size - d.start
+        ax.plot(x, y, label='Probability', color='tab:blue')
+        ax.fill_between(x,y, color='tab:blue', alpha=.5)
+    else:
+        x = range(d.start, d.start+len(y))
+        if len(y) < threshold_small_heads:
+            ax.stem(x, y, label='Probability', basefmt='')
+        elif len(y) < threshold_no_heads:
+            ax.stem(x, y, label='Probability', markerfmt='.', basefmt='')
+        else:
+            ax.stem(x, y, label='Probability', markerfmt='', basefmt='')
     ax.tick_params(axis='y', labelcolor='tab:blue')
     ax2 = ax.twinx()
     ax2.set_ylim(-.05, 1.05)
@@ -156,20 +180,20 @@ if __name__ == '__main__':
     print('Getting started: Try typing 2d6+3 or 8d6/2.')
     while True:
         print('\nEnter q to quit. Enter help for options.')
-        text = input('>>')
-        if text.lower() in ('q', 'quit', 'exit'):
+        text = input('>>').lower()
+        if text in ('q', 'quit', 'exit'):
             exit()
-        if text.lower() in ('?', 'h', 'help'):
+        if text in ('?', 'h', 'help'):
             print('Getting started: Try typing 2d6+3 or 8d6/2.')
             print(dice_strings.help_string)
             continue
-        if text.lower() in ('help advanced', 'h advanced', '?advanced', '? advanced', '"help advanced"'):
+        if text in ('help advanced', 'h advanced', '?advanced', '? advanced', '"help advanced"'):
             print(dice_strings.help_advanced)
             continue
-        if text.lower() in ('help choice', 'h choice', '?choice', '? choice', '"help choice"'):
+        if text in ('help choice', 'h choice', '?choice', '? choice', '"help choice"'):
             print(dice_strings.choice_help)
             continue
-        if text.lower() in ('help attack', 'h attack', '?attack', '? attack', '"help attack"'):
+        if text in ('help attack', 'h attack', '?attack', '? attack', '"help attack"'):
             print(dice_strings.attack_help)
             continue
         if len(text) > 0 and not text.isspace():

@@ -53,30 +53,33 @@ class die:
             return self.name
         return f'({self.name})'
 
-    def __truediv__(self, n):
+    def __truediv__(self, other):
         '''
-        Gives the distribution of taking a sample from self and dividing by n, rounding
-        towards 0.
+        Gives the distribution of taking a sample from self and
+        dividing by other, rounding towards 0.
         '''
-        if isinstance(n, die):
-            return NotImplemented
-        if not is_number(n):
+        if isinstance(other, die):
+            if other[0] >= 2**(-53):
+                raise ZeroDivisionError("Cannot divide by a distribution that's sometimes 0")
+            return divide_pmfs(self, other)
+            # return NotImplemented
+        if not is_number(other):
             raise TypeError('Can only divide by numbers')
-        if n == 0:
-            return 1/0 # gives the right error
-        if n < 0:
-            return (-self)/(-n)
-        if n == 1:
+        if other == 0:
+            raise ZeroDivisionError('Cannot divide by zero')
+        if other < 0:
+            return (-self)/(-other)
+        if other == 1:
             return self
-        new_start = int(np.trunc(self.start/n))
-        out = my_c.divide_pmf_by_int(self.arr, self.start, n)
-        return die(out, new_start, f'{self}/{n}', True)
+        new_start = int(np.trunc(self.start/other))
+        out = my_c.divide_pmf_by_int(self.arr, self.start, other)
+        return die(out, new_start, f'{self}/{other}', True)
 
-    def __floordiv__(self, n):
+    def __floordiv__(self, other):
         '''
-        Equivalent to __truediv__, so self/n.
+        Equivalent to __truediv__, so self/other.
         '''
-        return self/n
+        return self/other
 
     def _equals(self, other):
         '''
@@ -337,6 +340,24 @@ class die:
             raise ValueError('Cannot convert uncertain probability to boolean or evaluate expressions like 3 < 2d4 < 5.')
         return True
 
+    def __rand__(self, other):
+        '''
+        This performs the role of __includes__. __includes__ kinda has to return
+        a boolean, so we do use & instead and replace "in" with "&" in our text
+        processing.
+
+        other: A die, number, or list of numbers
+        Returns a die object showing the probability that other == self.
+        If other is a list of numbers
+        '''
+        if isinstance(other, die) or is_number(other):
+            return self == other
+        if any((isinstance(element, die) for element in other)):
+            return NotImplemented
+        p = np.sum(((self==element)[1] for element in other))
+        return die([1-p,p], 0, f'[{other} in {self}]', True, True)
+
+
 def ndm(n, m):
     '''
     Internal function, returns the distribution of ndm. Uses an FFT-based algorithm for the calculations
@@ -404,6 +425,16 @@ def pad(arr, start, length):
     if start > 0:
         x = np.append([0.0]*start, x)
     return np.append(x, [0.0]*(length-len(x)))
+
+def divide_pmfs(x, y):
+    '''
+    Internal function, returns the distribution of the ratio of two RVs.
+    x: A die class object, the numerator
+    y: A die class object, the denominator
+    Returns a new die class object.
+    '''
+    out, out_start = my_c.divide_pmfs(x.arr, y.arr, x.start, y.start)
+    return die(out, out_start, f'{x}/{y}', True)
 
 def multiply_pmfs(x, y):
     '''

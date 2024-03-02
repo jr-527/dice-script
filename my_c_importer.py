@@ -24,19 +24,60 @@ try:
     dll = ct.CDLL(os.path.join(sys.path[0], lib_path))
     dll.multiply_pmfs.argtypes = (
         d_arr,
-        d_arr, ct.c_size_t,
-        d_arr, ct.c_size_t, 
-        ct.c_size_t, ct.c_size_t, ct.c_size_t
+        d_arr, ct.c_int64,
+        d_arr, ct.c_int64, 
+        ct.c_int64, ct.c_int64, ct.c_int64
     )
     dll.divide_indices.argtypes = (
         d_arr,
         d_arr, ct.c_int64,
         ct.c_double, ct.c_int64
     )
+    dll.divide_pmfs.argtypes = (
+        d_arr,
+        d_arr, ct.c_int64,
+        d_arr, ct.c_int64,
+        ct.c_int64, ct.c_int64, ct.c_int64
+    )
+
+    def divide_pmfs(x, y, x_min, y_min):
+        # we're doing x/y
+        x_max = x_min + len(x) - 1
+        y_max = y_min + len(y) - 1
+        x_bounds = []
+        y_bounds = []
+        if x_max == 0:
+            x_bounds.append(-1)
+        else:
+            x_bounds.append(x_max)
+        if x_min == 0:
+            x_bounds.append(1)
+        else:
+            x_bounds.append(x_min)
+        if y_max == 0:
+            y_bounds.append(-1)
+        else:
+            y_bounds.append(y_max)
+        if y_min == 0:
+            y_bounds.append(1)
+        else:
+            y_bounds.append(y_min)
+        t = np.trunc(np.outer(x_bounds, 1/np.array(y_bounds)))
+        out_start = int(np.min(t))
+        out_stop = int(np.max(t))
+        out = np.zeros(out_stop-out_start+1, np.dtype('d'))
+        dll.divide_pmfs(
+            np.ctypeslib.as_ctypes(out),
+            arr_to_c(x), ct.c_int64(len(x)),
+            arr_to_c(y), ct.c_int64(len(y)),
+            ct.c_int64(x_min), ct.c_int64(y_min), ct.c_int64(out_start)
+        )
+        return out, out_start
+        
 
     def divide_pmf_by_int(arr, start, n):
         global dll, arr_to_c
-        end = start + len(arr)
+        end = start + len(arr) - 1
         out = np.zeros(int(np.trunc(end/n))-int(np.trunc(start/n))+1, np.dtype('d'))
         out_c = np.ctypeslib.as_ctypes(out)
         arr_c = arr_to_c(arr)
@@ -54,9 +95,9 @@ try:
         y_c = arr_to_c(y)
         dll.multiply_pmfs(
             arr_c,
-            x_c, ct.c_size_t(len(x)),
-            y_c, ct.c_size_t(len(y)),
-            ct.c_size_t(x_min), ct.c_size_t(y_min), ct.c_size_t(lower_bound)
+            x_c, ct.c_int64(len(x)),
+            y_c, ct.c_int64(len(y)),
+            ct.c_int64(x_min), ct.c_int64(y_min), ct.c_int64(lower_bound)
         )
         return np.ctypeslib.as_array(arr_c, len(arr))
 except:

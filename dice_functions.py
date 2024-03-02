@@ -55,12 +55,17 @@ def min_val(d, m=1):
 def mean(d):
     '''Internal function, returns the mean of a die class object.'''
     x = np.arange(d.start, d.start+len(d.arr))
-    return np.sum(x * d.arr)
+    out = np.sum(x * d.arr)
+    if abs(out) < 2**(-53): # values below this are likely rounding artifacts
+        out = 0.0 # so it's safer to just round to 0
+    return out
 
 def var(d):
     '''Internal function, returns the variance of a die class object.'''
     x = np.arange(d.start, d.start+len(d.arr))
     mu = mean(d)
+    if mu < 2**(-53):
+        return 0.0
     return max(np.sum(d.arr * (x-mu)**2), 0.0)
 
 def sd(d):
