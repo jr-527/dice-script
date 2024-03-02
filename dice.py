@@ -36,11 +36,11 @@ def process_input(text):
         r'die(ndm(int(\1),int(\2)),int(\1),"\1d\2", True)', new_text)
     # Python's parse rules mean eval can't properly process 2 < 1d20 < 19
     nts = re.split(r'(\>=|\>|\<=|\<|==|!=)', new_text) # "new text split"
-    operators = ['>', '<', '>=', '<=', '==', '!=']
+    relations = ['>', '<', '>=', '<=', '==', '!=']
     while True:
         has_changed = False
         for i in range(len(nts)-1, -1, -1):
-            if nts[i] in operators:
+            if nts[i] in relations:
                 lhs, op, rhs = nts[i-1], nts[i], nts[i+1]
                 if not parens_balanced(lhs) and not parens_balanced(rhs):
                     if parens_balanced(lhs+op+rhs):
@@ -49,9 +49,9 @@ def process_input(text):
                         has_changed = True
         if not has_changed:
             break
-    if len(nts) != 1:
+    if len(nts) > 3:
         try:
-            nts = [eval(x) if x not in operators else x for x in nts]
+            nts = [eval(x) if x not in relations else x for x in nts]
             p = multiple_inequality(*nts)
             x = die(np.array([1-p, p]), 0, text, True, True)
         except SyntaxError:

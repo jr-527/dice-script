@@ -416,11 +416,11 @@ def multiple_inequality(*args):
     #                 if i+w_start < j+x_start <= k+y_start > l+z_start == ...:
     #                     out += P(w==i) * P(x==j) * P(y==k) * ...
     # return out
-    operators = {'>':np.greater, '<':np.less, '>=':np.greater_equal,
+    relations = {'>':np.greater, '<':np.less, '>=':np.greater_equal,
                  '<=':np.less_equal, '==':np.equal, '!=':np.not_equal}
     arrs = [np.array([1.0]) if is_number(x) else x.arr for x in args[::2]]
     starts = [x if is_number(x) else x.start for x in args[::2]]
-    ops = [operators[x] for x in args[1::2]]
+    ops = [relations[x] for x in args[1::2]]
     # We use einsum to generalize np.outer for 3+ arrays.
     # It performs the P(x=i)*P(y=j)*P(z=k)*... part of the pseudocode,
     # but vectorized.

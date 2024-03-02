@@ -2,7 +2,6 @@
 import numpy as np
 import my_c_importer as my_c
 import re
-# warnings.filterwarnings('ignore', 'elementwise comparison failed')
 
 PRINT_COMPARISONS = [False]
 
@@ -59,6 +58,8 @@ class die:
         Gives the distribution of taking a sample from self and dividing by n, rounding
         towards 0.
         '''
+        if isinstance(n, die):
+            return NotImplemented
         if not is_number(n):
             raise TypeError('Can only divide by numbers')
         if n == 0:
@@ -67,15 +68,8 @@ class die:
             return (-self)/(-n)
         if n == 1:
             return self
-        ss = self.start
-        new_start = int_div_to_0(ss, n)
-        se = self.start + len(self.arr)
-        new_end = int_div_to_0(se, n)
-        out = [0.0]*(new_end-new_start+1)
-        j = 0
-        for i, val in enumerate(self.arr):
-            j = int_div_to_0(ss+i,n) - new_start
-            out[j] += val
+        new_start = int(np.trunc(self.start/n))
+        out = my_c.divide_pmf_by_int(self.arr, self.start, n)
         return die(out, new_start, f'{self}/{n}', True)
 
     def __floordiv__(self, n):
@@ -84,7 +78,7 @@ class die:
         '''
         return self/n
 
-    def equals(self, other):
+    def _equals(self, other):
         '''
         Returns True if self and other have the same distribution, False otherwise.
         Note that this uses np.isclose to check equality.
@@ -98,6 +92,29 @@ class die:
         return (self.start == other.start and len(self.arr) == len(other.arr) and
             np.all(np.isclose(self.arr, other.arr)))
 
+    def _comparison(self, relation, other):
+        other_arr = None
+        other_start = other
+        if is_number(other):
+            other_arr = np.array([1.0])
+        elif isinstance(other, die):
+            other_arr = other.arr
+            other_start = other.start
+        else:
+            return NotImplemented
+        relations = {'>':np.greater, '<':np.less, '>=':np.greater_equal,
+                     '<=':np.less_equal, '==':np.equal, '!=':np.not_equal}
+        prod = np.outer(self.arr, other_arr)
+        indices = np.indices(prod.shape)
+        bools = relations[relation](
+            indices[0],
+            indices[1]+(other_start-self.start)
+        )
+        out = np.sum(prod*bools)
+        if PRINT_COMPARISONS[0]:
+            print(f'P[{self} {relation} {other}] = {out}')
+        return out
+
     def __mul__(self, other):
         '''
         Gives the distribution of the product of self, other.
@@ -106,6 +123,8 @@ class die:
         '''
         if isinstance(other, die):
             return multiply_pmfs(self, other)
+        if not is_number(other):
+            return NotImplemented
         if 0 < abs(other) and abs(other) < 1:
             return self / (1/other)
         other = round(other)
@@ -115,7 +134,9 @@ class die:
             return self
         if other < 0:
             return -self*abs(other)
-        arr = my_c.pmf_times_int(self.arr, other)
+        arr = np.zeros(len(self.arr)*other)
+        i = np.arange(len(self.arr))*other
+        np.put(arr, i, self.arr)
         return die(arr, self.start*other, f'{self}*{other}', True)
 
     def __matmul__(self, other):
@@ -150,9 +171,11 @@ class die:
                 # for offset in offsets:
                 #     out += original * offset
                 # return out
+                # Could reuse forward ffts here but it shouldn't matter
                 temp = other @ (i + ss)
                 out_arr[temp.start-min_a:temp.start-min_a+len(temp.arr)] += p*temp.arr
             return die(out_arr, min_a, f'{self} @ {other}', False)
+        return NotImplemented
 
     def __rmatmul__(self, other):
         '''Variant of __matmul__, self-explanatory.'''
@@ -178,8 +201,10 @@ class die:
         n: A non-negative integer
         Returns a new die class object.
         '''
-        if not is_number(n) or n != round(n) or n < 0:
-            raise TypeError('Can only raise a die to a non-negative integer power')
+        if not is_number(n):
+            return NotImplemented
+        if n != round(n) or n < 0:
+            raise ValueError('Can only raise die to non-negative integer power')
         n = round(n)
         if n == 0:
             return die([1.0], 0, 1)
@@ -187,9 +212,9 @@ class die:
             return self
         ss = self.start
         se = self.start + len(self.arr)
-        out = [0.0] * (se**n - ss**n)
-        for i, val in enumerate(self.arr):
-            out[(i+ss)**n - ss**n] = val
+        out = np.zeros(se**n-ss**n)
+        i = (np.arange(len(self.arr))+ss)**n - ss**n
+        np.put(out, i, self.arr)
         return die(out, min(ss**n, se**n), f'{self}^{n}', self.basicName)
 
     def __add__(self, other):
@@ -202,6 +227,8 @@ class die:
             start = self.start + other.start
             arr = my_convolve(self.arr, other.arr)
             return die(arr, start, f'{self}+{other}', False)
+        if not is_number(other):
+            return NotImplemented
         other = round(other)
         return die(self.arr, self.start+other, f'{self}+{other}', False)
 
@@ -226,24 +253,10 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        if is_number(other):
-            a = self.arr
-            a = a[np.indices(a.shape)[0] + self.start == other]
-            s = np.sum(a)
-            if PRINT_COMPARISONS[0]:
-                print(f'P[{self} = {other}] =', np.format_float_positional(s,14,trim='-'))
-            return die([1-s,s], 0, f'[{self} = {other}]', isProbability=True)
-            # return self
-        if not isinstance(other, die):
-            raise NotImplemented(f'Cannot compare die with {type(other)}')
-        t = self-other
-        a = t.arr
-        a = a[np.indices(a.shape)[0]+t.start == 0]
-        s = np.sum(a)
-        if PRINT_COMPARISONS[0]:
-            print(f'P[{self} = {other}] =', np.format_float_positional(s,14,trim='-'))
-        return die([1-s,s], 0, f'[{self} = {other}]', isProbability=True)
-        # return self
+        p = self._comparison('==', other)
+        if p is NotImplemented:
+            return NotImplemented
+        return die([1-p,p], 0, f'[{self} = {other}]', isProbability=True)
 
     def __ne__(self, other):
         '''
@@ -254,22 +267,10 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        if is_number(other):
-            a = self.arr
-            a = a[np.indices(a.shape)[0] + self.start == other]
-            s = np.sum(a)
-            if PRINT_COMPARISONS[0]:
-                print(f'P[{self} != {other}] =', np.format_float_positional(s,14,trim='-'))
-            return die([s,1-s], 0, f'[{self} = {other}]', isProbability=True)
-        if not isinstance(other, die):
-            raise NotImplemented(f'Cannot compare die with {type(other)}')
-        t = self-other
-        a = t.arr
-        a = a[np.indices(a.shape)[0]+t.start == 0]
-        s = np.sum(a)
-        if PRINT_COMPARISONS[0]:
-            print(f'P[{self} != {other}] =', np.format_float_positional(s,14,trim='-'))
-        return die([s,1-s], 0, f'[{self} = {other}]', isProbability=True)
+        p = self._comparison('!=', other)
+        if p is NotImplemented:
+            return NotImplemented
+        return die([1-p,p], 0, f'[{self} != {other}]', isProbability=True)
 
     def __lt__(self, other):
         '''
@@ -280,25 +281,10 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        if is_number(other):
-            a = self.arr
-            a = a[np.indices(a.shape)[0]+self.start < other]
-            s = np.sum(a)
-            if PRINT_COMPARISONS[0]:
-                print(f'P[{self} < {other}] =', np.format_float_positional(s,14,trim='-'))
-            return die([1-s,s], 0, f'[{self} < {other}]', True, isProbability=True)
-            # return self
-        if not isinstance(other, die):
-            raise NotImplemented(f'Cannot compare die with {type(other)}')
-        t = self-other
-        a = t.arr
-        a = a[np.indices(a.shape)[0]+t.start < 0]
-        s = np.sum(a)
-        if PRINT_COMPARISONS[0]:
-            print(f'P[{self} < {other}] =', np.format_float_positional(s,14,trim='-'))
-        return die([1-s,s], 0, f'[{self} < {other}]', True, isProbability=True)
-        # return self
-
+        p = self._comparison('<', other)
+        if p is NotImplemented:
+            return NotImplemented
+        return die([1-p,p], 0, f'[{self} < {other}]', isProbability=True)
     
     def __le__(self, other):
         '''
@@ -309,24 +295,10 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        if is_number(other):
-            a = self.arr
-            a = a[np.indices(a.shape)[0]+self.start <= other]
-            s = np.sum(a)
-            if PRINT_COMPARISONS[0]:
-                print(f'P[{self} <= {other}] =', np.format_float_positional(s,14,trim='-'))
-            return die([1-s,s], 0, f'[{self} <= {other}]', True, isProbability=True)
-            # return self
-        if not isinstance(other, die):
-            raise NotImplemented(f'Cannot compare die with {type(other)}')
-        t = self-other
-        a = t.arr
-        a = a[np.indices(a.shape)[0]+t.start <= 0]
-        s = np.sum(a)
-        if PRINT_COMPARISONS[0]:
-            print(f'P[{self} <= {other}] =', np.format_float_positional(s,14,trim='-'))
-        return die([1-s,s], 0, f'[{self} <= {other}]', True, isProbability=True)
-        # return self
+        p = self._comparison('<=', other)
+        if p is NotImplemented:
+            return NotImplemented
+        return die([1-p,p], 0, f'[{self} <= {other}]', isProbability=True)
 
     def __gt__(self, other):
         '''
@@ -337,24 +309,10 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        if is_number(other):
-            a = self.arr
-            a = a[np.indices(a.shape)[0]+self.start > other]
-            s = np.sum(a)
-            if PRINT_COMPARISONS[0]:
-                print(f'P[{self} > {other}] =', np.format_float_positional(s,14,trim='-'))
-            return die([1-s,s], 0, f'[{self} > {other}]', True, isProbability=True)
-            # return self
-        if not isinstance(other, die):
-            raise NotImplemented(f'Cannot compare die with {type(other)}')
-        t = self-other
-        a = t.arr
-        a = a[np.indices(a.shape)[0]+t.start > 0]
-        s = np.sum(a)
-        if PRINT_COMPARISONS[0]:
-            print(f'P[{self} > {other}] =', np.format_float_positional(s,14,trim='-'))
-        return die([1-s,s], 0, f'[{self} > {other}]', True, isProbability=True)
-        # return self
+        p = self._comparison('>', other)
+        if p is NotImplemented:
+            return NotImplemented
+        return die([1-p,p], 0, f'[{self} > {other}]', isProbability=True)
 
     def __ge__(self, other):
         '''
@@ -365,23 +323,10 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        if is_number(other):
-            a = self.arr
-            a = a[np.indices(a.shape)[0]+self.start >= other]
-            s = np.sum(a)
-            if PRINT_COMPARISONS[0]:
-                print(f'P[{self} >= {other}] =', np.format_float_positional(s,14,trim='-'))
-            return die([1-s,s], 0, f'[{self} >= {other}]', True, isProbability=True)
-            # return self
-        if not isinstance(other, die):
-            raise NotImplemented(f'Cannot compare die with {type(other)}')
-        t = self-other
-        a = t.arr
-        a = a[np.indices(a.shape)[0]+t.start >= 0]
-        s = np.sum(a)
-        if PRINT_COMPARISONS[0]:
-            print(f'P[{self} >= {other}] =', np.format_float_positional(s,14,trim='-'))
-        return die([1-s,s], 0, f'[{self} >= {other}]', True, isProbability=True)
+        p = self._comparison('>=', other)
+        if p is NotImplemented:
+            return NotImplemented
+        return die([1-p,p], 0, f'[{self} >= {other}]', isProbability=True)
 
     def __bool__(self):
         if np.isclose(self[0], 1.0):
@@ -468,6 +413,8 @@ def multiply_pmfs(x, y):
     Returns a new die class object.
     '''
     # I can't find an efficient way to do this, so we'll do it the slow way, but in C.
+    # It might be possible to do something involving characteristic functions,
+    # but I'm not quite seeing it.
     # https://en.wikipedia.org/wiki/Distribution_of_the_product_of_two_random_variables
     if len(x.arr) > len(y.arr):
         x, y = y, x
@@ -497,3 +444,4 @@ def my_convolve(x, y):
     y = np.append(y, [0]*n)
     convolve = np.fft.irfft(np.fft.rfft(x) * np.fft.rfft(y), n+m)
     return convolve[:-1]
+    
