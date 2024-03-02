@@ -3,7 +3,8 @@ This project calculates and plots various probability distributions related to d
 ### Features:  
 * Fast: Unlike many other projects, my script has no difficulty with relatively large inputs such as 1200d20. Calculations are done using FFTs and the convolution theorem whenever possible, and the numeric work is generally done using C or vectorized Numpy operations.
 * Accurate: My script doesn't use any Monte Carlo simulations or normal approximations. Calculations are generally accurate to 14+ decimal places, although numbers below about 2^-53 run into floating point rounding problems.
-* Versatile: This script can perform a wide range of calculations. If Alice rolls 1+1d4 6-sided die, Bob rolls 2d12\*2d4\*0.3 (rounding down), and Carol rolls 3+1d4 and squares the result, then the probability that Alice's total is less than Bob's, and Bob's is less than or equal to Carol's can be calculated as follows: ```(1+1d4)d6 < 2d12*2d4*.3 <= (3+1d4)**2```.
+* Versatile: This script can perform a wide range of calculations. If Alice rolls 1+1d4 6-sided die, Bob rolls 2d12\*2d4\*0.3 (rounding down), and Carol rolls 3+1d4 and squares the result, then the probability that Alice's total is less than Bob's and Bob's is less than or equal to Carol's can be calculated as follows:  
+```(1+1d4)d6 < 2d12*2d4*.3 <= (3+1d4)**2```.
 
 ## Installation
 

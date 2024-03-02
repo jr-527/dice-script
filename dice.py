@@ -29,7 +29,7 @@ def process_input(text):
     Internal function. Processes then calls eval on text, plotting if possible.
     '''
     new_text = re.sub('\s', ' ', text)
-    new_text = new_text.replace(' in ', '&')
+    new_text = new_text.replace(' in ', ' == ')
     new_text = re.sub(r'[)]d', r')@1d', new_text)
     new_text = re.sub('(4d6dl)|(4d6 drop lowest)', 'stat_roll()', new_text)
     new_text = re.sub(r'\^', '**', new_text)

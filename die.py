@@ -96,6 +96,11 @@ class die:
             np.all(np.isclose(self.arr, other.arr)))
 
     def _comparison(self, relation, other):
+        if not (isinstance(other, die) or is_number(other)):
+            if any((isinstance(element, die) for element in other)):
+                return NotImplemented
+            other = set(other)
+            return np.sum(((self==element)[1] for element in other))
         other_arr = None
         other_start = other
         if is_number(other):
@@ -340,24 +345,6 @@ class die:
             raise ValueError('Cannot convert uncertain probability to boolean or evaluate expressions like 3 < 2d4 < 5.')
         return True
 
-    def __rand__(self, other):
-        '''
-        This performs the role of __includes__. __includes__ kinda has to return
-        a boolean, so we do use & instead and replace "in" with "&" in our text
-        processing.
-
-        other: A die, number, or list of numbers
-        Returns a die object showing the probability that other == self.
-        If other is a list of numbers
-        '''
-        if isinstance(other, die) or is_number(other):
-            return self == other
-        if any((isinstance(element, die) for element in other)):
-            return NotImplemented
-        p = np.sum(((self==element)[1] for element in other))
-        return die([1-p,p], 0, f'[{other} in {self}]', True, True)
-
-
 def ndm(n, m):
     '''
     Internal function, returns the distribution of ndm. Uses an FFT-based algorithm for the calculations
@@ -380,14 +367,6 @@ def ndm(n, m):
 def is_number(x):
     '''Internal function. Returns True if x is a numeric type, False otherwise.'''
     return isinstance(x, (int, float, np.number))
-
-def int_div_to_0(x, n):
-    '''
-    Internal function. Equivalent to x//n except negative values round towards 0.
-    '''
-    if x < 0:
-        return int(-(-x//n))
-    return int(x//n)
 
 def trim(arr):
     '''

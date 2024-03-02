@@ -1,5 +1,5 @@
 '''User-facing functions'''
-from die import die, ndm, is_number, int_div_to_0, trim, pad, multiply_pmfs, bin_coeff, my_convolve, PRINT_COMPARISONS
+from die import die, ndm, is_number, trim, pad, multiply_pmfs, bin_coeff, my_convolve, PRINT_COMPARISONS
 import numpy as np
 import re
 
