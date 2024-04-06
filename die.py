@@ -40,7 +40,9 @@ class die:
     def __getitem__(self, key):
         if type(key) == slice:
             key = np.r_[key]
-            return [self[i] for i in key]
+            if len(key) == 0:
+                return np.array(self.arr)
+            return np.array([self[i] for i in key])
         if self.start <= key and self.start + len(self.arr) > key:
             return self.arr[key-self.start]
         return 0.0
@@ -163,16 +165,16 @@ class die:
             x = np.append(self.arr, [0]*(len(self.arr)-1)*(n-1))
             x = np.fft.irfft(np.fft.rfft(x)**n, len(x))
             start = n*self.start
-            return die(x, n*self.start, f'{other}@{self}', False)
+            return die(x, n*self.start, f'{other}@{self}', True)
         if isinstance(other, die):
-            ss = self.start
-            se = self.start + len(self.arr)
-            os = other.start
-            oe = other.start + len(other.arr)
-            min_a = min(ss*os, ss*oe, se*os, se*oe)
-            max_a = max(ss*os, ss*oe, se*os, se*oe)
-            out_arr = np.array([0.0] * (max_a - min_a + 1))
-            out = die([1.0], 0, 1)
+            # ss = self.start
+            # se = self.start + len(self.arr)
+            # os = other.start
+            # oe = other.start + len(other.arr)
+            # min_a = min(ss*os, ss*oe, se*os, se*oe)
+            # max_a = max(ss*os, ss*oe, se*os, se*oe)
+            # out_arr = np.array([0.0] * (max_a - min_a + 1))
+            out = die([0.0], 0)
             for i, p in enumerate(self.arr):
                 # This is the equivalent of doing
                 # out = [0, ..., 0]
@@ -180,9 +182,13 @@ class die:
                 #     out += original * offset
                 # return out
                 # Could reuse forward ffts here but it shouldn't matter
-                temp = other @ (i + ss)
-                out_arr[temp.start-min_a:temp.start-min_a+len(temp.arr)] += p*temp.arr
-            return die(out_arr, min_a, f'{self} @ {other}', False)
+                temp = other @ (i + self.start)
+                # out_arr[temp.start-min_a:temp.start-min_a+len(temp.arr)] += p*temp.arr
+                out = pmf_sum(out, temp, y_weight=p)
+            # out2 = die(out_arr, min_a, f'{self} @ {other}', False)
+            # print('match?', out2._equals(out))
+            # return die(out_arr, min_a, f'{self} @ {other}', False)
+            return die(out.arr, out.start, f'{self} @ {other}', True)
         return NotImplemented
 
     def __rmatmul__(self, other):
@@ -223,7 +229,7 @@ class die:
         out = np.zeros(se**n-ss**n)
         i = (np.arange(len(self.arr))+ss)**n - ss**n
         np.put(out, i, self.arr)
-        return die(out, min(ss**n, se**n), f'{self}^{n}', self.basicName)
+        return die(out, min(ss**n, se**n), f'{self}^{n}', True)
 
     def __add__(self, other):
         '''
@@ -239,6 +245,31 @@ class die:
             return NotImplemented
         other = round(other)
         return die(self.arr, self.start+other, f'{self}+{other}', False)
+
+    def __mod__(self, other):
+        if isinstance(other, die):
+            out = die([0.0], 0)
+            for i, p in enumerate(other.arr):
+                if i + other.start - 1 == 0:
+                    if abs(p) < 2**(-53):
+                        continue
+                    # otherwise the following line produces the desired error
+                out = pmf_sum(out, self % (i + other.start), y_weight=p)
+            return die(out.arr, out.start, f'{self}%{other}', self.basicName)
+        if other == 1:
+            return die([1.0], 0, f'{self}%{other}', self.basicName)
+        n = len(self.arr)
+        is_neg = other < 0
+        other = abs(other)
+        new_size = n + other - 1
+        new_size -= (new_size % other)
+        new_arr = np.pad(self.arr, (0,new_size-n)).reshape(new_size//other, other)
+        new_arr = np.roll(np.sum(new_arr, 0), self.start)
+        new_start = 0
+        if is_neg:
+            new_arr = np.flip(new_arr)
+            new_start = -len(new_arr)+1
+        return die(new_arr, new_start, f'{self}%{other}', self.basicName)
 
     def __radd__(self, other):
         '''Variant of __add__, self-explanatory'''
@@ -454,4 +485,19 @@ def my_convolve(x, y):
     y = np.append(y, [0]*n)
     convolve = np.fft.irfft(np.fft.rfft(x) * np.fft.rfft(y), n+m)
     return convolve[:-1]
-    
+
+def pmf_sum(x, y, x_weight=1, y_weight=1):
+    '''
+    Internal function. Does elementwise addition of x, y.
+    x, y: die class objects
+    Returns a die-class object whose PMF is the sum of those of x, y.
+    '''
+    # let x.start <= y.start
+    if x.start > y.start:
+        x, y = y, x
+        x_weight, y_weight = y_weight, x_weight
+    end = max(x.start + len(x.arr), y.start + len(y.arr)) - x.start
+    x_arr = x_weight * np.pad(x.arr, (0, end-len(x.arr)))
+    y_arr = y_weight * np.pad(y.arr, (y.start-x.start, end-len(y.arr)-y.start+x.start))
+    return die(x_arr+y_arr, x.start, 'IF YOU SEE THIS pmf_sum WENT WRONG')
+

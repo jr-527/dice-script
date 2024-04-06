@@ -1,5 +1,6 @@
 '''User-facing functions'''
 from die import die, ndm, is_number, trim, pad, multiply_pmfs, bin_coeff, my_convolve, PRINT_COMPARISONS
+from dice_roll import sum_roll, drop_one_die
 import numpy as np
 import re
 
@@ -64,8 +65,6 @@ def var(d):
     '''Internal function, returns the variance of a die class object.'''
     x = np.arange(d.start, d.start+len(d.arr))
     mu = mean(d)
-    if mu < 2**(-53):
-        return 0.0
     return max(np.sum(d.arr * (x-mu)**2), 0.0)
 
 def sd(d):
@@ -447,3 +446,34 @@ def multiple_inequality(*args):
         0)
     # This does the "out +=" part of the pseudocode, but vectorized
     return np.sum(bools * prod)
+
+
+def drop(count, faces, mode, n=1):
+    select = n
+    ascending = False
+    if 'k' in mode:
+        if 'l' in mode:
+            ascending = True
+    else:
+        select = count-n
+        if 'h' in mode: # dh
+            ascending = True
+    x = None
+    if select == count-1 and not ascending:
+        start = count-1
+        x = drop_one_die(count,faces)[start:]
+        x = x / np.sum(x)
+    else:
+        # This function approximates runtime well enough
+        if np.exp(faces**2 * select / 15**2) > 1000:
+            print('This calculation is slow. Sorry.')
+        x = sum_roll(faces, count, select, ascending)[::-1]
+        start = x[0][0]
+        x = np.array(x)[:,1]
+    name, basic = '', False
+    if ' ' in mode:
+        name = f'{count}d{faces} {mode} {n}'
+    else:
+        name = f'{count}d{faces}{mode}{n}'
+        basic = True
+    return die(x, start, name, basic)

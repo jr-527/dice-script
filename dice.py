@@ -1,6 +1,6 @@
 from die import die, ndm, is_number
 import numpy as np
-from dice_functions import min0, min1, min_val, mean, var, sd, order_stat, order, highest, adv, advantage, lowest, disadv, dis, disadvantage, choice, attack, crit, check, save, reroll, sample, multiple_inequality
+from dice_functions import min0, min1, min_val, mean, var, sd, order_stat, order, highest, adv, advantage, lowest, disadv, dis, disadvantage, choice, attack, crit, check, save, reroll, sample, multiple_inequality, drop
 from round_to_width import round_to_width as round_w
 import dice_strings
 import os
@@ -29,12 +29,13 @@ def process_input(text):
     Internal function. Processes then calls eval on text, plotting if possible.
     '''
     new_text = re.sub('\s', ' ', text)
-    new_text = new_text.replace(' in ', ' == ')
     new_text = re.sub(r'[)]d', r')@1d', new_text)
-    new_text = re.sub('(4d6dl)|(4d6 drop lowest)', 'stat_roll()', new_text)
+    drop_regexp = r'([1-9][0-9]*)d([1-9][0-9]*)\s*(kh|dh|kl|dl|keep lowest|' + \
+        r'keep highest|drop lowest|drop highest)\s*([1-9][0-9]*)?'
+    new_text = re.sub(drop_regexp, r'drop(\1, \2, "\3", \4)', new_text)
     new_text = re.sub(r'\^', '**', new_text)
     new_text = re.sub(r'([1-9][0-9]*)d([1-9][0-9]*)',
-        r'die(ndm(\1,\2),\1,"\1d\2", True)', new_text)
+        r'die(ndm(\1,\2),\1,"\1d\2",True)', new_text)
     # Python's parse rules mean eval can't properly process 2 < 1d20 < 19
     nts = re.split(r'(\>=|\>|\<=|\<|==|!=)', new_text) # "new text split"
     relations = ['>', '<', '>=', '<=', '==', '!=']
@@ -59,13 +60,7 @@ def process_input(text):
             x = eval(new_text)
     else:
         x = eval(new_text)
-    if is_number(x) or isinstance(x, np.bool_):
-        print('Numeric result:', x)
-        x = None
-    if x is None:
-        print('Nothing to plot.')
-    else:
-        plot(x, text)
+    return x
 
 def plot(d, name=None):
     '''
@@ -153,14 +148,6 @@ def plot(d, name=None):
     fig.legend()
     plt.show()
 
-def stat_roll(): # Needs to have a different name than say 4d6dl() bc regex
-    arr = np.array(
-        [1, 4, 10, 21, 38, 62, 91, 122, 148, 167, 172, 160, 131, 94, 54, 21],
-        dtype=np.float64
-    )
-    arr /= 1296
-    return die(arr, 3, '4d6dl', True)
-
 def parens_balanced(string):
     net = 0
     for char in string:
@@ -174,9 +161,9 @@ def parens_balanced(string):
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
-        process_input(' '.join(sys.argv[1:]))
+        text = ' '.join(sys.argv[1:])
+        plot(process_input(text), text)
         exit()
-    # print(help_string)
     print('Getting started: Try typing 2d6+3 or 8d6/2.')
     while True:
         print('\nEnter q to quit. Enter help for options.')
@@ -187,18 +174,29 @@ if __name__ == '__main__':
             print('Getting started: Try typing 2d6+3 or 8d6/2.')
             print(dice_strings.help_string)
             continue
-        if text in ('help advanced', 'h advanced', '?advanced', '? advanced', '"help advanced"'):
+        if text in ('advanced', 'help advanced', 'h advanced', '?advanced', '? advanced', '"help advanced"'):
             print(dice_strings.help_advanced)
             continue
-        if text in ('help choice', 'h choice', '?choice', '? choice', '"help choice"'):
+        if text in ('choice', 'help choice', 'h choice', '?choice', '? choice', '"help choice"'):
             print(dice_strings.choice_help)
             continue
-        if text in ('help attack', 'h attack', '?attack', '? attack', '"help attack"'):
+        if text in ('attack', 'help attack', 'h attack', '?attack', '? attack', '"help attack"'):
             print(dice_strings.attack_help)
             continue
         if len(text) > 0 and not text.isspace():
             try:
-                process_input(text)
+                x = process_input(text)
+                if isinstance(x, (np.ndarray, list)):
+                    # This won't happen under normal use but it's helpful for
+                    # development reasons.
+                    print(x)
+                if is_number(x) or isinstance(x, np.bool_):
+                    print('Numeric result:', x)
+                    x = None
+                if x is None:
+                    print('Nothing to plot.')
+                else:
+                    plot(x, text)
             except NameError as e:
                 print('Not a valid input.')
                 traceback.print_exc()

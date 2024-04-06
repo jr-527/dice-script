@@ -1,8 +1,8 @@
 help_string = '''
 Available things:
- +, -, *, / (, ):
+ +, -, *, / (, ), %:
    Does what you'd expect, eg 2d6-1d4+3, 3*1d6 (not the same as 3d6), 1d4*(2d6+2), 8d6/2.
-   Division (or multiplying by a fraction) rounds towards 0.
+   Division (or multiplying by a fraction) rounds towards 0. % represents modulo.
    You can also do things like (1d4)d6, which represents rolling 1d4 then adding up that many d6.
 
  ^, **:
@@ -28,8 +28,15 @@ Available things:
    2 and 19, 1d4 <= 1d20 < 12 the probability of rolling 1d4 and 1d20 and having the 1d20
    be between the 1d4 (inclusive) and 12 (exclusive)
 
- 4d6dl or '4d6 drop lowest':
-   This gives the distribution of 4d6 with the lowest die removed.
+ keep highest, drop highest, keep lowest, drop lowest:
+   This gives the distribution of a dice roll with some of the lowest/highest dice dropped.
+   For example, "5d6 drop lowest 2" gives the result of rolling 5d6 and adding up the three
+   highest dice.
+   You can abbreviate keep highest to kh, drop lowest to dl, etc.
+   If no number is specified, as in "5d6dl", it defaults to 1, so that's the same as "5d6dl1"
+   Ex: "4d6 kh 3", "4d6 keep highest 3", "4d6kh3", "4d6dl" are all equivalent.
+   This operation can be slow for large numbers of die with lots of faces, so if you input
+   14d14dl2 it might take a while to load.
 
  @:
    More advanced version of (1d4)d6. If an attack hits 1d4+2 times, and each hit
