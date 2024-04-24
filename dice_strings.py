@@ -35,8 +35,8 @@ Available things:
    You can abbreviate keep highest to kh, drop lowest to dl, etc.
    If no number is specified, as in "5d6dl", it defaults to 1, so that's the same as "5d6dl1"
    Ex: "4d6 kh 3", "4d6 keep highest 3", "4d6kh3", "4d6dl" are all equivalent.
-   This operation can be slow for large numbers of die with lots of faces, so if you input
-   14d14dl2 it might take a while to load.
+   This operation can be slow if the numbers are relatively large, like 100d100dl50.
+   If you get tired of waiting, press ctrl-c to cancel.
 
  @:
    More advanced version of (1d4)d6. If an attack hits 1d4+2 times, and each hit

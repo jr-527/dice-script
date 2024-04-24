@@ -1,6 +1,6 @@
 '''User-facing functions'''
 from die import die, ndm, is_number, trim, pad, multiply_pmfs, bin_coeff, my_convolve, PRINT_COMPARISONS
-from dice_roll import sum_roll, drop_one_die
+from drop import drop_die
 import numpy as np
 import re
 
@@ -417,7 +417,7 @@ def multiple_inequality(*args):
     #     for each possible value j of x:
     #         for each possible value k of y:
     #             for ...
-    #                 if i+w_start < j+x_start <= k+y_start > l+z_start == ...:
+    #                 if i < j <= k > l == ...:
     #                     out += P(w==i) * P(x==j) * P(y==k) * ...
     # return out
     relations = {'>':np.greater, '<':np.less, '>=':np.greater_equal,
@@ -425,8 +425,8 @@ def multiple_inequality(*args):
     arrs = [np.array([1.0]) if is_number(x) else x.arr for x in args[::2]]
     starts = [x if is_number(x) else x.start for x in args[::2]]
     ops = [relations[x] for x in args[1::2]]
-    # We use einsum to generalize np.outer for 3+ arrays.
-    # It performs the P(x=i)*P(y=j)*P(z=k)*... part of the pseudocode,
+    # We use einsum because np.outer doesn't play nicely with 3+ arrays.
+    # It performs the P(w==i)*P(x==j)*P(y==k)*... part of the pseudocode,
     # but vectorized.
     es_str = 'a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z'[:len(args)]
     prod = np.einsum(es_str, *arrs)
@@ -439,16 +439,32 @@ def multiple_inequality(*args):
     # We use np.all(..., 0) to coalesce all that
     # (0 corresponds to the "for i in range(len(ops))" axis)
     bools = np.all(
-        [ops[i](
-            indices[i],
-            indices[i+1]+(starts[i+1]-starts[i]))
-        for i in range(len(ops))],
+        [
+            ops[i](
+                indices[i],
+                indices[i+1]+(starts[i+1]-starts[i]))
+            for i in range(len(ops))
+        ],
         0)
     # This does the "out +=" part of the pseudocode, but vectorized
     return np.sum(bools * prod)
 
 
 def drop(count, faces, mode, n=1):
+    '''
+    Calculates the PMF of rolling count die, where each die has faces sides.
+    If mode is "keep highest", we keep the highest n die, throw out
+    the rest, then take the sum. Any combination of "keep"/"drop" and
+    "highest"/"lowest" works for mode.
+    count: int, the number of die
+    faces: int, the number of faces on each die
+    mode: string. Any combination of "keep"/"drop" and "highest"/"lowest", ie
+        "keep highest" is valid. You can also abbreviate words to their first
+        letter, ie "kh" for "keep highest" or "dl" for "drop lowest"
+    n: int, the number of die either kept or discarded, depending on mode
+
+    Returns a new die class object.
+    '''
     select = n
     ascending = False
     if 'k' in mode:
@@ -458,18 +474,15 @@ def drop(count, faces, mode, n=1):
         select = count-n
         if 'h' in mode: # dh
             ascending = True
-    x = None
-    if select == count-1 and not ascending:
-        start = count-1
-        x = drop_one_die(count,faces)[start:]
-        x = x / np.sum(x)
+    start, x = None, None
+    if select == count:
+        x = ndm(n=count, m=faces)
+        start = count*faces
     else:
-        # This function approximates runtime well enough
-        if np.exp(faces**2 * select / 15**2) > 1000:
-            print('This calculation is slow. Sorry.')
-        x = sum_roll(faces, count, select, ascending)[::-1]
-        start = x[0][0]
-        x = np.array(x)[:,1]
+        start, x = drop_die(faces, count, select)
+        x = x / np.sum(x)
+        if ascending:
+            x = np.flip(x)
     name, basic = '', False
     if ' ' in mode:
         name = f'{count}d{faces} {mode} {n}'

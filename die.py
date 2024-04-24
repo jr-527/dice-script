@@ -9,17 +9,15 @@ class die:
     '''
     A class for managing PMFs which take on integer values. A number of built-in functions like
     __mul__ are defined, so if x, y, z are instances of this class, you can do things like (x+y)*z.
-    Instances of this class are immutable, so all methods return an object and none are done in-place.
+    This class works in a functional manner, so all public-facing methods return a new instance.
     
     Initialization parameters:
     arr: A list or numpy array that's a valid PMF (non-negative numbers which sum to 1)
     start: An integer, the offset for the first non-zero value in arr,
            so die([.4,.6], 5) is a 40% chance of 5, 60% chance of 6.
-    name (optional): A string, a name for this distribution
+    name (optional): A string, a name for this distribution.
     basicName (optional): Boolean, should the name be parenthesized when combining with other names.
     '''
-    # Immutable. All methods should return an object.
-    # Invariant: self.arr is a valid PMF
     def __init__(self, arr, start, name=None, basicName=False, isProbability=False):
         '''
         arr: A list or numpy array that's a valid PMF (non-negative numbers which sum to 1)
@@ -78,9 +76,7 @@ class die:
         return die(out, new_start, f'{self}/{other}', True)
 
     def __floordiv__(self, other):
-        '''
-        Equivalent to __truediv__, so self/other.
-        '''
+        '''Equivalent to __truediv__, so self/other.'''
         return self/other
 
     def _equals(self, other):
@@ -98,6 +94,7 @@ class die:
             np.all(np.isclose(self.arr, other.arr)))
 
     def _comparison(self, relation, other):
+        '''Internal function, implements the various inequality operations'''
         if not (isinstance(other, die) or is_number(other)):
             if any((isinstance(element, die) for element in other)):
                 return NotImplemented
@@ -114,6 +111,14 @@ class die:
             return NotImplemented
         relations = {'>':np.greater, '<':np.less, '>=':np.greater_equal,
                      '<=':np.less_equal, '==':np.equal, '!=':np.not_equal}
+        # We take the outer product of the PMFs and add up the entries
+        # where the desired relation is satisfied.
+        # This is equivalent to the following pseudo-code, but vectorized
+        # for index1, probability1 in self:
+        #     for index2, probability2 in other:
+        #         prod = probability1 * probability2
+        #         if index (relation) index2:
+        #             out += prod
         prod = np.outer(self.arr, other_arr)
         indices = np.indices(prod.shape)
         bools = relations[relation](
@@ -167,13 +172,6 @@ class die:
             start = n*self.start
             return die(x, n*self.start, f'{other}@{self}', True)
         if isinstance(other, die):
-            # ss = self.start
-            # se = self.start + len(self.arr)
-            # os = other.start
-            # oe = other.start + len(other.arr)
-            # min_a = min(ss*os, ss*oe, se*os, se*oe)
-            # max_a = max(ss*os, ss*oe, se*os, se*oe)
-            # out_arr = np.array([0.0] * (max_a - min_a + 1))
             out = die([0.0], 0)
             for i, p in enumerate(self.arr):
                 # This is the equivalent of doing
@@ -181,13 +179,10 @@ class die:
                 # for offset in offsets:
                 #     out += original * offset
                 # return out
-                # Could reuse forward ffts here but it shouldn't matter
+                # Could likely reuse forward ffts here but it shouldn't matter
                 temp = other @ (i + self.start)
                 # out_arr[temp.start-min_a:temp.start-min_a+len(temp.arr)] += p*temp.arr
                 out = pmf_sum(out, temp, y_weight=p)
-            # out2 = die(out_arr, min_a, f'{self} @ {other}', False)
-            # print('match?', out2._equals(out))
-            # return die(out_arr, min_a, f'{self} @ {other}', False)
             return die(out.arr, out.start, f'{self} @ {other}', True)
         return NotImplemented
 
@@ -247,6 +242,14 @@ class die:
         return die(self.arr, self.start+other, f'{self}+{other}', False)
 
     def __mod__(self, other):
+        '''
+        If other is an integer, gives the distribution of
+        (a sample from self) mod other.
+        If other is a die class object, gives the distribution of
+        (a sample from self) mod (a sample from other)
+        other: A die class object or int.
+        Returns a new die class object.
+        '''
         if isinstance(other, die):
             out = die([0.0], 0)
             for i, p in enumerate(other.arr):
@@ -368,13 +371,8 @@ class die:
         return die([1-p,p], 0, f'[{self} >= {other}]', isProbability=True)
 
     def __bool__(self):
-        if np.isclose(self[0], 1.0):
-            return False
-        if np.isclose(self[1], 1.0):
-            return True
-        if self.isProbability:
-            raise ValueError('Cannot convert uncertain probability to boolean or evaluate expressions like 3 < 2d4 < 5.')
-        return True
+        '''I'm not really sure why I implemented this one'''
+        return not np.isclose(self[0], 1.0)
 
 def ndm(n, m):
     '''
@@ -388,8 +386,15 @@ def ndm(n, m):
     if n == 1:
         return np.array(x)/m
     out = None
+    # If A and B are random variables, then the distribution of A+B
+    # is convolve(A.distribution, B.distribution).
+    # We use the convolution theorem to make this calculation more
+    # efficient.
+    # Equivalently, if X(t) is the characteristic function of 1d6
+    # and Y(t) is the characteristic function of 7d6, then Y(T) == X(T)**7
     try:
         f = float(m**n)
+        # the len(x) is so that we don't get weird results for odd lengths
         out = np.rint(np.fft.irfft(np.fft.rfft(x)**n, len(x))) / f
     except OverflowError:
         out = np.fft.irfft(np.fft.rfft(x/np.sum(x))**n, len(x))

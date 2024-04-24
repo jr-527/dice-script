@@ -3,7 +3,6 @@ import numpy as np
 from dice_functions import min0, min1, min_val, mean, var, sd, order_stat, order, highest, adv, advantage, lowest, disadv, dis, disadvantage, choice, attack, crit, check, save, reroll, sample, multiple_inequality, drop
 from round_to_width import round_to_width as round_w
 import dice_strings
-import os
 import sys
 import numpy as np
 plt = None # For asynchronous importing, to start up more quickly
@@ -28,7 +27,7 @@ def process_input(text):
     '''
     Internal function. Processes then calls eval on text, plotting if possible.
     '''
-    new_text = re.sub('\s', ' ', text)
+    new_text = re.sub(' = ', ' == ', text)
     new_text = re.sub(r'[)]d', r')@1d', new_text)
     drop_regexp = r'([1-9][0-9]*)d([1-9][0-9]*)\s*(kh|dh|kl|dl|keep lowest|' + \
         r'keep highest|drop lowest|drop highest)\s*([1-9][0-9]*)?'
@@ -40,6 +39,7 @@ def process_input(text):
     nts = re.split(r'(\>=|\>|\<=|\<|==|!=)', new_text) # "new text split"
     relations = ['>', '<', '>=', '<=', '==', '!=']
     while True:
+        # This is inefficient but the inputs are small
         has_changed = False
         for i in range(len(nts)-1, -1, -1):
             if nts[i] in relations:
@@ -81,7 +81,7 @@ def plot(d, name=None):
             'standard deviation:',
             f"{round_w(sd(d),15,'left',leading_zero=True).strip()}")
         s = int(sample(d))
-        s = (f'{s} (Succeed)') if s else (f'{s} (Fail)')
+        s = 'Yes' if s else 'No'
         print(f'Random sample from distribution:', s)
         if d.arr[0] == 0 or d.arr[0] == 1:
             print('Nothing to plot.')
@@ -90,9 +90,9 @@ def plot(d, name=None):
         fig, ax = plt.subplots()
         if name:
             fig.canvas.manager.set_window_title(name)
-            plt.title(name)
-        ax.bar(0, d.arr[0], 0.4, bottom=d.arr[1], label='Fail', color='tab:red')
-        ax.bar(0, d.arr[1], 0.4, bottom=0, label='Succeed', color='tab:blue')
+            plt.title('Distribution of ' + name)
+        ax.bar(0, d.arr[0], 0.4, bottom=d.arr[1], label='No', color='tab:red')
+        ax.bar(0, d.arr[1], 0.4, bottom=0, label='Yes', color='tab:blue')
         ax.set_xlim(-1,1)
         ax.get_xaxis().set_ticks([])
         ax.legend()
@@ -103,18 +103,21 @@ def plot(d, name=None):
         'standard deviation:',
         f"{round_w(sd(d),15,'left',leading_zero=True).strip()}")
     print(f'Random sample from distribution: {sample(d)}')
-    if len(d.arr) == 1:
-        print('Nothing to plot.')
-        return
+    # if len(d.arr) == 1:
+    #     print('Nothing to plot.')
+    #     return
     print('Plotting in other window. That window must be closed to continue.')
     fig, ax = plt.subplots()
     if name:
-        if '=' in name or '<' in name or '>' in name:
-            name = d.name
+        # if '=' in name or '<' in name or '>' in name:
+        #     name = d.name
         fig.canvas.manager.set_window_title(name)
-        plt.title(name)
+        plt.title('Distribution of ' + name)
     y = d.arr
     cumulative = np.cumsum(y)
+    # For larger arrays, we plot differently to reduce clutter.
+    # For very large arrays, we split the array into buckets and plot the max of
+    # each bucket, to improve speed.
     threshold_small_heads = 100
     threshold_no_heads = 1000
     threshold_continuous = 10000
@@ -122,7 +125,7 @@ def plot(d, name=None):
         col_size = int(len(y)/(threshold_continuous/2))
         # reshape y to (col_size, ?)
         new_cols = int(np.ceil(len(y)/col_size))
-        y = np.max( # resample by taking the max of every 5000 elements
+        y = np.max( # resample by taking the max of every ? elements
             np.pad(y, (0,new_cols*col_size-len(y))).reshape(new_cols, col_size),
             1
         )
@@ -164,23 +167,27 @@ if __name__ == '__main__':
         text = ' '.join(sys.argv[1:])
         plot(process_input(text), text)
         exit()
-    print('Getting started: Try typing 2d6+3 or 8d6/2.')
+    print('Getting started: Try typing 2d6+3 or 8d6/2 < 12.')
     while True:
         print('\nEnter q to quit. Enter help for options.')
         text = input('>>').lower()
+        text = re.sub('\s+', ' ', text)
         if text in ('q', 'quit', 'exit'):
             exit()
         if text in ('?', 'h', 'help'):
             print('Getting started: Try typing 2d6+3 or 8d6/2.')
             print(dice_strings.help_string)
             continue
-        if text in ('advanced', 'help advanced', 'h advanced', '?advanced', '? advanced', '"help advanced"'):
+        if text in ('advanced', 'help advanced', 'h advanced', '?advanced',
+                    '? advanced', 'man advanced', 'info advanced', '"help advanced"'):
             print(dice_strings.help_advanced)
             continue
-        if text in ('choice', 'help choice', 'h choice', '?choice', '? choice', '"help choice"'):
+        if text in ('choice', 'help choice', 'h choice', '?choice', '? choice',
+                    'man choice', 'info choice', '"help choice"'):
             print(dice_strings.choice_help)
             continue
-        if text in ('attack', 'help attack', 'h attack', '?attack', '? attack', '"help attack"'):
+        if text in ('attack', 'help attack', 'h attack', '?attack', '? attack',
+                    'man attack', 'info attack', '"help attack"'):
             print(dice_strings.attack_help)
             continue
         if len(text) > 0 and not text.isspace():
