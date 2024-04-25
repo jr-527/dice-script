@@ -166,6 +166,8 @@ class die:
                 return -(self @ -other)
             if other == 0:
                 return self*0
+            if other == 1:
+                return self
             n = round(other)
             x = np.append(self.arr, [0]*(len(self.arr)-1)*(n-1))
             x = np.fft.irfft(np.fft.rfft(x)**n, len(x))
@@ -373,6 +375,35 @@ class die:
     def __bool__(self):
         '''I'm not really sure why I implemented this one'''
         return not np.isclose(self[0], 1.0)
+
+    def reroll(self, option, values):
+        x, start = np.array(self.arr), self.start
+        vals = values
+        if vals[0] == '[' and vals[-1] == ']':
+            vals = vals[1:-1]
+        vals = vals.split(',')
+        removed = 0.0
+        for item in vals:
+            if item[0] == 'l':
+                num = int(item[1:])
+                removed += np.sum(x[:num-start+1])
+                x[:num-start+1] = 0.0
+                item = item[1:]
+            elif item[0] == 'g':
+                num = int(item[1:])
+                removed += np.sum(x[num-start:])
+                x[num-start:] = 0.0
+            else:
+                num = int(item)
+                removed += x[num-start]
+                x[num-start] = 0.0
+        if option == 'ro':
+            x += self.arr * removed
+        elif option == 'r':
+            if np.sum(x) == 0.0:
+                raise ValueError('Cannot reroll all values on die')
+            x *= 1/(1-removed)
+        return die(x, start, f'({self}){option}{values}', True)
 
 def ndm(n, m):
     '''

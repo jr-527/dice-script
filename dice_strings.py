@@ -8,18 +8,19 @@ Available things:
  ^, **:
    Raise to a power, eg 1d3^2 is either 1, 4, or 9, 1d4**2 is either 1, 4, 9, or 16.
 
+ r, ro:
+   Gives the distribution of rolling dice while rerolling certain values. Syntax is mostly
+   the same as roll20's syntax.
+   Ex: 3d6r1 gives the distribution of rolling 3 d6 and rerolling all 1s.
+   Ex: 3d6ro1 gives the distribution of rolling 3 d6 and rerolling 1s once, keeping the new roll.
+   Ex: 3d6r<4 is the distribution of rolling 3 d6 and rerolling all values up to 4 (inclusive)
+   Ex: 3d20ro[2,>15,7] gives the distribution of rolling 3 d8 and rerolling values of 2, 7, or
+   15 through 20 (inclusive) once, keeping the new roll.
+   Ex: (3d6)ro>15 is the distribution of rolling 3 d6, adding them up, then rerolling once if
+   the sum is at least 15, keeping the new roll.
+
  adv, dis:
    Gives the better/worse of 2 attempts, eg adv(1d20), dis(3d6).
-
- highest, lowest:
-   Like adv() or dis() but with other numbers, eg highest(1d20, 3) is the best of 3 rolls.
-   Syntax: highest(die, number of rolls), lowest(die, number of rolls)
-
- min0, min1, min_val:
-   min0, min1 mean results less than 0 or 1 are replaced with 0 or 1 respectively.
-   min_val does the same but with an arbitrary minimum, so in min_val(1d6-3, 2),
-   results less than 2 are replaced with 2.
-   Syntax: min0(die), min1(die), min_val(die, minimum)
 
  >, >=, <, <=, ==, !=:
    3d4 > 2d6 prints the probability that 3d4 > 2d6, and the other symbols are similar.
@@ -44,7 +45,7 @@ Available things:
    Syntax: thing1 @ thing2. Gives the distribution of evaluating thing1 then adding
            up that many copies of thing2.
 
-There are also more advanced functions that implement things like checks/saves, attacks, rerolling,
+There are also more advanced functions that implement things like checks/saves, attacks,
 and some logic. Type "help advanced" to see instructions for these advanced functions.'''
 
 help_advanced = '''
@@ -76,21 +77,22 @@ Advanced functions:
        +4+1d4 to hit, dealing 2d6+3 vs AC 16
    Enter "help attack" for more advanced usage of this function.
 
- reroll:
-   Rerolls if the dice roll comes out to certain values, keeping the new result.
-   You can manually specify numbers to reroll, give upper or lower bounds for numbers
-   to reroll, or do a combination of both.
-   Syntax: reroll(die, [value1_to_reroll, value2_to_reroll, ..., lower=?, upper=?])
-   The things in [...] are optional.
-   Ex: reroll(1d6, 1, 2) or reroll(1d6, upper=2) rolls 1d6, rerolling 1s or 2s.
-   Ex: reroll(1d20, 13, lower=5, upper=9) rolls 1d20, rerolling 5, 6, 7, 8, 9, or 13.
-
  choice:
    Function for if/else statements. Multiple possible syntaxes.
    Syntax 1: choice(condition, if_false, if_true)
    Syntax 2: choice(probability_of_true, if_false, if_true)
    Syntax 3: choice(distribution, value1, value2, ...)
    Enter "help choice" for other ways to use choice.
+
+ highest, lowest:
+   Like adv() or dis() but with other numbers, eg highest(4d6dl, 6) is the best of 6 rolls.
+   Syntax: highest(die, number of rolls), lowest(die, number of rolls)
+
+ min0, min1, min_val:
+   min0, min1 mean results less than 0 or 1 are replaced with 0 or 1 respectively.
+   min_val does the same but with an arbitrary minimum, so in min_val(1d6-3, 2),
+   results less than 2 are replaced with 2.
+   Syntax: min0(die), min1(die), min_val(die, minimum)
 
  help:
    If called as a function, help prints another function's Python documentation,

@@ -1,6 +1,6 @@
 from die import die, ndm, is_number
 import numpy as np
-from dice_functions import min0, min1, min_val, mean, var, sd, order_stat, order, highest, adv, advantage, lowest, disadv, dis, disadvantage, choice, attack, crit, check, save, reroll, sample, multiple_inequality, drop
+from dice_functions import min0, min1, min_val, mean, var, sd, order_stat, order, highest, adv, advantage, lowest, disadv, dis, disadvantage, choice, attack, crit, check, save, sample, multiple_inequality, drop
 from round_to_width import round_to_width as round_w
 import dice_strings
 import sys
@@ -32,6 +32,13 @@ def process_input(text):
     drop_regexp = r'([1-9][0-9]*)d([1-9][0-9]*)\s*(kh|dh|kl|dl|keep lowest|' + \
         r'keep highest|drop lowest|drop highest)\s*([1-9][0-9]*)?'
     new_text = re.sub(drop_regexp, r'drop(\1, \2, "\3", \4)', new_text)
+    reroll_regexp = r'([1-9][0-9]*)d([1-9][0-9]*)(ro?)([<>]?[1-9][0-9]*|\[[^\]]*\])'
+    # new_text = re.sub(reroll_regexp, r'reroll(\1, \2, "\3", "\4")', new_text)
+    new_text = re.sub(reroll_regexp, r'\1@(1d\2).reroll("\3", "\4")', new_text)
+    reroll_regexp2 = r'\)(ro?)([<>]?[1-9][0-9]*|\[[^\]]*\])'
+    new_text = re.sub(reroll_regexp2, r').reroll("\1", "\2")', new_text)
+    new_text = new_text.replace('"<', '"l')
+    new_text = new_text.replace('">', '"g')
     new_text = re.sub(r'\^', '**', new_text)
     new_text = re.sub(r'([1-9][0-9]*)d([1-9][0-9]*)',
         r'die(ndm(\1,\2),\1,"\1d\2",True)', new_text)
@@ -55,11 +62,17 @@ def process_input(text):
         try:
             nts = [eval(x) if x not in relations else x for x in nts]
             p = multiple_inequality(*nts)
-            x = die(np.array([1-p, p]), 0, text, True, True)
-        except SyntaxError:
-            x = eval(new_text)
-    else:
+            return die(np.array([1-p, p]), 0, text, True, True)
+        except Exception as e1:
+            print('Debug info: nts:')
+            print(nts)
+            raise e1
+    try:
         x = eval(new_text)
+    except Exception as e2:
+        print('Debug info: new_text:')
+        print(new_text)
+        raise e2
     return x
 
 def plot(d, name=None):

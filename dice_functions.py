@@ -350,44 +350,6 @@ def check(bonus, dc, adv=0, *, succeed=None, fail=None):
 
 save = check
 
-def reroll(dice, *args, lower=-np.inf, upper=np.inf):
-    '''
-    Returns the distribution of rerolling dice if certain values show up.
-    If neither lower, upper are specified, then it only rerolls values specified
-    in the positional arguments. Otherwise, it rerolls any values that are
-    specified in the positional arguments or values such that
-    lower <= value <= upper.
-    '''
-    dice_min = dice.start
-    dice_max = dice.start + len(dice.arr)
-    if lower == -np.inf and upper == np.inf:
-        lower, upper = upper, lower
-    values_to_reroll = [x for x in range(dice_min, dice_max) if x in args or (lower <= x and x <= upper)]
-    temp1 = np.array(dice.arr)
-    if len(values_to_reroll) == 0 or len(values_to_reroll) == len(dice.arr): # not sure why you'd do this
-        return dice
-    for i in values_to_reroll:
-        temp1[i-dice.start] = 0.0
-    out_arr = temp1 + sum((dice.arr*dice[x] for x in values_to_reroll))
-    dice.basicName = True
-    name = f'[{dice} reroll'
-    n = len(values_to_reroll)
-    vals = np.array(values_to_reroll)
-    if n == 1:
-        name += f' {values_to_reroll[0]}'
-    elif n == 2:
-        name += f' {values_to_reroll[0]} or {values_to_reroll[1]}'
-    else:
-        if lower >= dice_min and upper <= dice_max:
-            name += f' from {lower} to {upper}'
-        elif upper <= dice_max:
-            name += f' <= {upper}'
-        elif lower >= dice_min:
-            name += f' >= {lower}'
-        name += ' or ' + str([x for x in values_to_reroll if not (lower <= x and x <= upper)])[1:-1]
-    name += ']'
-    return die(out_arr, dice_min, name, True)
-
 def sample(d):
     '''
     Internal function for generating a sample from a distribution.
