@@ -88,7 +88,7 @@ compare_ops = {
     ast.Lt:ast.Constant('<'),
     ast.LtE:ast.Constant('<='),
     ast.Gt:ast.Constant('>'),
-    ast.GtE:ast.Constant('>=)'),
+    ast.GtE:ast.Constant('>='),
 }
 
 class MultipleIneq(ast.NodeTransformer):

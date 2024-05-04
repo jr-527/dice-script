@@ -200,9 +200,7 @@ class die:
         return self
 
     def __neg__(self):
-        '''
-        Returns the distribution of the negative of self.
-        '''
+        '''Returns the distribution of the negative of self.'''
         out_basic_name = not self.basicName
         if re.fullmatch('(\-)?[1-9][0-9]*d[1-9][0-9]*', self.name):
             out_basic_name = True
