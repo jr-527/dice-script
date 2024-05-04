@@ -27,12 +27,10 @@ sys.stdout.flush()
 safe_functions = set((
     'd',
     'print',
+    'help',
     'min0',
     'min1',
     'min_val',
-    'mean',
-    'var',
-    'sd',
     'order_stat',
     'order',
     'highest',
@@ -47,7 +45,6 @@ safe_functions = set((
     'crit',
     'check',
     'save',
-    'sample',
     'multiple_inequality',
     'drop',
     'die',
@@ -204,14 +201,9 @@ def plot(d, name=None):
         'standard deviation:',
         f"{round_w(sd(d),15,'left',leading_zero=True).strip()}")
     print(f'Random sample from distribution: {sample(d)}')
-    # if len(d.arr) == 1:
-    #     print('Nothing to plot.')
-    #     return
     print('Plotting in other window. That window must be closed to continue.')
     fig, ax = plt.subplots()
     if name:
-        # if '=' in name or '<' in name or '>' in name:
-        #     name = d.name
         fig.canvas.manager.set_window_title(name)
         plt.title('Distribution of ' + name)
     y = d.arr
