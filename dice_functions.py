@@ -409,7 +409,8 @@ def multiple_inequality(*args):
         ],
         0)
     # This does the "out +=" part of the pseudocode, but vectorized
-    return np.sum(bools * prod)
+    p = np.sum(bools * prod)
+    return die(np.array([1-p, p]), 0, ''.join((str(x) for x in args)), True, True)
 
 
 def drop(count, faces, mode, n=1):

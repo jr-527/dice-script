@@ -10,6 +10,7 @@ import threading
 import re
 import warnings
 import traceback
+import ast
 warnings.filterwarnings('ignore', 'elementwise comparison failed')
 
 plt_initialized = False
@@ -22,6 +23,120 @@ import_thread = threading.Thread(target=import_plt, name='import matplotlib')
 import_thread.start()
 print('\33]0;Dice Script\a', end='')
 sys.stdout.flush()
+
+safe_functions = set((
+    'd',
+    'print',
+    'min0',
+    'min1',
+    'min_val',
+    'mean',
+    'var',
+    'sd',
+    'order_stat',
+    'order',
+    'highest',
+    'adv',
+    'advantage',
+    'lowest',
+    'disadv',
+    'dis',
+    'disadvantage',
+    'choice',
+    'attack',
+    'crit',
+    'check',
+    'save',
+    'sample',
+    'multiple_inequality',
+    'drop',
+    'die',
+    'ndm',
+    'reroll',
+    '_comparison',
+    '_equals',
+))
+
+safe_nodes = set((
+    ast.Expression,
+    ast.Module,
+    ast.Constant,
+    ast.Expr,
+    ast.Num,
+    ast.Call,
+    ast.List,
+    ast.Tuple,
+    ast.Attribute,
+    ast.Compare,
+    ast.Name,
+    ast.Load,
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.Add, ast.UAdd, ast.Sub, ast.USub,
+    ast.Mult, ast.MatMult,
+    ast.Div, ast.FloorDiv,
+    ast.Mod,
+    ast.Pow,
+    ast.Eq, ast.NotEq,
+    ast.Lt, ast.LtE,
+    ast.Gt, ast.GtE,
+))
+
+compare_ops = {
+    ast.Eq:ast.Constant('=='),
+    ast.NotEq:ast.Constant('!='),
+    ast.Lt:ast.Constant('<'),
+    ast.LtE:ast.Constant('<='),
+    ast.Gt:ast.Constant('>'),
+    ast.GtE:ast.Constant('>=)'),
+}
+
+class MultipleIneq(ast.NodeTransformer):
+    '''
+    Class to convert expressions like a<b<c into the function call
+    multiple_inequality(a, '<', b, '<', c)
+    '''
+    def visit_Compare(self, node):
+        if len(node.comparators) == 1:
+            return node
+        values = [node.left]
+        operators = [compare_ops[x.__class__] for x in node.ops]
+        # this comprehension interleaves operators and node.comparators
+        values += [x for y in zip(operators, node.comparators) for x in y]
+        function = ast.Name(
+            id='multiple_inequality',
+            ctx=ast.Load()
+        )
+        return ast.copy_location(ast.Call(function, values, []), node)
+
+def whitelist_eval(string):
+    '''
+    Checks that the AST of string only contains nodes and function calls
+    included in the whitelist. If so, evaluates string, otherwise raises
+    an exception. Also converts sub-expressions like a < (b+c) < d into
+    multiple_inequality(a,'<',(b+c),'<',d)
+    '''
+    tree = ast.parse(string, mode='eval')
+    tree = MultipleIneq().visit(tree)
+    for node in ast.walk(tree):
+        if type(node) not in safe_nodes:
+            raise Exception(f'{type(node)} is not a whitelisted operation')
+        elif isinstance(node, ast.Call):
+            func = ''
+            if isinstance(node.func, ast.Attribute):
+                func = node.func.attr
+            elif isinstance(node.func, ast.Name):
+                func = node.func.id
+            else:
+                raise Exception(f'{type(node.func)} is not a whitelisted call type')
+            if func not in safe_functions:
+                raise Exception(f'{func} is not a whitelisted function')
+    ast.fix_missing_locations(tree)
+    return eval(compile(tree, filename='<whitelisted-ast>', mode='eval'))
+
+def d(x, y):
+    '''Wrapper function for die(ndm(x,y),..)'''
+    return die(ndm(x, y), x, f'{x}d{y}', True)
 
 def process_input(text):
     '''
@@ -40,39 +155,12 @@ def process_input(text):
     new_text = new_text.replace('"<', '"l')
     new_text = new_text.replace('">', '"g')
     new_text = re.sub(r'\^', '**', new_text)
-    new_text = re.sub(r'([1-9][0-9]*)d([1-9][0-9]*)',
-        r'die(ndm(\1,\2),\1,"\1d\2",True)', new_text)
-    # Python's parse rules mean eval can't properly process 2 < 1d20 < 19
-    nts = re.split(r'(\>=|\>|\<=|\<|==|!=)', new_text) # "new text split"
-    relations = ['>', '<', '>=', '<=', '==', '!=']
-    while True:
-        # This is inefficient but the inputs are small
-        has_changed = False
-        for i in range(len(nts)-1, -1, -1):
-            if nts[i] in relations:
-                lhs, op, rhs = nts[i-1], nts[i], nts[i+1]
-                if not parens_balanced(lhs) and not parens_balanced(rhs):
-                    if parens_balanced(lhs+op+rhs):
-                        nts[i-1:i+2] = [lhs+op+rhs]
-                        i -= 1
-                        has_changed = True
-        if not has_changed:
-            break
-    if len(nts) > 3:
-        try:
-            nts = [eval(x) if x not in relations else x for x in nts]
-            p = multiple_inequality(*nts)
-            return die(np.array([1-p, p]), 0, text, True, True)
-        except Exception as e1:
-            print('Debug info: nts:')
-            print(nts)
-            raise e1
+    new_text = re.sub(r'([1-9][0-9]*)d([1-9][0-9]*)', r'd(\1,\2)', new_text)
     try:
-        x = eval(new_text)
-    except Exception as e2:
-        print('Debug info: new_text:')
-        print(new_text)
-        raise e2
+        x = whitelist_eval(new_text)
+    except Exception as e:
+        e.args = (e.args[0] + f'\nnew_text: {new_text}',)
+        raise e.with_traceback(e.__traceback__)
     return x
 
 def plot(d, name=None):
@@ -164,17 +252,6 @@ def plot(d, name=None):
     fig.legend()
     plt.show()
 
-def parens_balanced(string):
-    net = 0
-    for char in string:
-        if char == '(':
-            net += 1
-        elif char == ')':
-            net -= 1
-            if net < 0:
-                return False
-    return net == 0
-
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         text = ' '.join(sys.argv[1:])
@@ -186,7 +263,7 @@ if __name__ == '__main__':
         text = input('>>').lower()
         text = re.sub('\s+', ' ', text)
         if text in ('q', 'quit', 'exit'):
-            exit()
+            break
         if text in ('?', 'h', 'help'):
             print('Getting started: Try typing 2d6+3 or 8d6/2.')
             print(dice_strings.help_string)

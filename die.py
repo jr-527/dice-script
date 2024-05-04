@@ -196,6 +196,9 @@ class die:
         '''Variant of __mul__, self-explanatory.'''
         return self*other
 
+    def __pos__(self):
+        return self
+
     def __neg__(self):
         '''
         Returns the distribution of the negative of self.
