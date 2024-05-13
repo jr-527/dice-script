@@ -87,7 +87,7 @@ try:
         )
         return out
 
-    def multiply_pmfs(arr, x, y, x_min, y_min, lower_bound):
+    def multiply_pmfs(arr, x, y, x_min, y_min, lower_bound): # type: ignore
         global dll, arr_to_c
         arr_c = arr_to_c(arr)
         x_c = arr_to_c(x)

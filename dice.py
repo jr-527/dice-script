@@ -1,6 +1,10 @@
-from die import die, ndm, is_number
+#!/usr/bin/env python3
+from numbers import Real
+from die import die, ndm
 import numpy as np
-from dice_functions import min0, min1, min_val, mean, var, sd, order_stat, order, highest, adv, advantage, lowest, disadv, dis, disadvantage, choice, attack, crit, check, save, sample, multiple_inequality, drop
+from dice_functions import (min0, min1, min_val, mean, var, sd, order_stat,
+    order, highest, adv, advantage, lowest, disadv, dis, disadvantage, choice,
+    attack, crit, check, save, sample, multiple_inequality, drop)
 from round_to_width import round_to_width as round_w
 import dice_strings
 import sys
@@ -97,7 +101,7 @@ class MultipleIneq(ast.NodeTransformer):
         if len(node.comparators) == 1:
             return node
         values = [node.left]
-        operators = [compare_ops[x.__class__] for x in node.ops]
+        operators = [compare_ops[x.__class__] for x in node.ops] # type: ignore
         # this comprehension interleaves operators and node.comparators
         values += [x for y in zip(operators, node.comparators) for x in y]
         function = ast.Name(
@@ -106,12 +110,12 @@ class MultipleIneq(ast.NodeTransformer):
         )
         return ast.copy_location(ast.Call(function, values, []), node)
 
-def whitelist_eval(string):
+def whitelist_eval(string: str) -> die:
     '''
     Checks that the AST of string only contains nodes and function calls
     included in the whitelist. If so, evaluates string, otherwise raises
     an exception. Also converts sub-expressions like a < (b+c) < d into
-    multiple_inequality(a,'<',(b+c),'<',d)
+    multiple_inequality(a, '<', (b+c), '<', d)
     '''
     tree = ast.parse(string, mode='eval')
     tree = MultipleIneq().visit(tree)
@@ -131,13 +135,13 @@ def whitelist_eval(string):
     ast.fix_missing_locations(tree)
     return eval(compile(tree, filename='<whitelisted-ast>', mode='eval'))
 
-def d(x, y):
+def d(x: int, y: int):
     '''Wrapper function for die(ndm(x,y),..)'''
     return die(ndm(x, y), x, f'{x}d{y}', True)
 
-def process_input(text):
+def process_input(text: str) -> die|float:
     '''
-    Internal function. Processes then calls eval on text, plotting if possible.
+    Internal function. Processes then calls eval on text.
     '''
     new_text = re.sub(' = ', ' == ', text)
     new_text = re.sub(r'[)]d', r')@1d', new_text)
@@ -145,7 +149,6 @@ def process_input(text):
         r'keep highest|drop lowest|drop highest)\s*([1-9][0-9]*)?'
     new_text = re.sub(drop_regexp, r'drop(\1, \2, "\3", \4)', new_text)
     reroll_regexp = r'([1-9][0-9]*)d([1-9][0-9]*)(ro?)([<>]?[1-9][0-9]*|\[[^\]]*\])'
-    # new_text = re.sub(reroll_regexp, r'reroll(\1, \2, "\3", "\4")', new_text)
     new_text = re.sub(reroll_regexp, r'\1@(1d\2).reroll("\3", "\4")', new_text)
     reroll_regexp2 = r'\)(ro?)([<>]?[1-9][0-9]*|\[[^\]]*\])'
     new_text = re.sub(reroll_regexp2, r').reroll("\1", "\2")', new_text)
@@ -160,19 +163,18 @@ def process_input(text):
         raise e.with_traceback(e.__traceback__)
     return x
 
-def plot(d, name=None):
+def plot(d: die, name: str):
     '''
     Internal function. Plots a distribution
     d: A number or die class object
     name (optional): A custom name for the plot.
     '''
-    global plt_initialized
+    global plt_initialized, plt
     # If matplotlib isn't imported yet, we wait
     if not plt_initialized:
         import_thread.join()
         plt_initialized = True
-    if hasattr(d, '__len__'):
-        d = die(d, 0)
+    assert plt is not None
     if d.isProbability:
         print('Probability:',
             f"{round_w(mean(d),15,'left',leading_zero=True).strip()}",
@@ -186,9 +188,8 @@ def plot(d, name=None):
             return
         print('Plotting in other window. That window must be closed to continue.')
         fig, ax = plt.subplots()
-        if name:
-            fig.canvas.manager.set_window_title(name)
-            plt.title('Distribution of ' + name)
+        fig.canvas.manager.set_window_title(name) # type: ignore (linter is wrong)
+        plt.title('Distribution of ' + name)
         ax.bar(0, d.arr[0], 0.4, bottom=d.arr[1], label='No', color='tab:red')
         ax.bar(0, d.arr[1], 0.4, bottom=0, label='Yes', color='tab:blue')
         ax.set_xlim(-1,1)
@@ -203,9 +204,8 @@ def plot(d, name=None):
     print(f'Random sample from distribution: {sample(d)}')
     print('Plotting in other window. That window must be closed to continue.')
     fig, ax = plt.subplots()
-    if name:
-        fig.canvas.manager.set_window_title(name)
-        plt.title('Distribution of ' + name)
+    fig.canvas.manager.set_window_title(name) # type: ignore
+    plt.title('Distribution of ' + name)
     y = d.arr
     cumulative = np.cumsum(y)
     # For larger arrays, we plot differently to reduce clutter.
@@ -247,13 +247,27 @@ def plot(d, name=None):
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         text = ' '.join(sys.argv[1:])
-        plot(process_input(text), text)
+        try:
+            x = process_input(text)
+            if isinstance(x, die):
+                plot(x, text)
+            elif isinstance(x, Real):
+                print('Numeric result:', x)
+                x = None
+            if x is None:
+                print('Nothing to plot.')
+        except NameError as e:
+            print('Not a valid input.')
+            traceback.print_exc()
+        except Exception as e:
+            print('Error encountered, aborting input.')
+            traceback.print_exc()
         exit()
     print('Getting started: Try typing 2d6+3 or 8d6/2 < 12.')
     while True:
         print('\nEnter q to quit. Enter help for options.')
-        text = input('>>').lower()
-        text = re.sub('\s+', ' ', text)
+        text = input('>>').lower().strip()
+        text = re.sub(r'\s+', ' ', text)
         if text in ('q', 'quit', 'exit'):
             break
         if text in ('?', 'h', 'help'):
@@ -275,17 +289,13 @@ if __name__ == '__main__':
         if len(text) > 0 and not text.isspace():
             try:
                 x = process_input(text)
-                if isinstance(x, (np.ndarray, list)):
-                    # This won't happen under normal use but it's helpful for
-                    # development reasons.
-                    print(x)
-                if is_number(x) or isinstance(x, np.bool_):
+                if isinstance(x, die):
+                    plot(x, text)
+                elif isinstance(x, Real):
                     print('Numeric result:', x)
                     x = None
                 if x is None:
                     print('Nothing to plot.')
-                else:
-                    plot(x, text)
             except NameError as e:
                 print('Not a valid input.')
                 traceback.print_exc()

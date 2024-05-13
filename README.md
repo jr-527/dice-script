@@ -9,7 +9,7 @@ This project calculates and plots various probability distributions related to d
 
 ## Installation
 
-Download the repository to your computer. Make sure that you have a fairly modern version of Python installed along with matplotlib and numpy.  
+Download the repository to your computer. Make sure that you have Python 3.10 or above installed along with matplotlib and numpy.  
 This repository uses code written in C to speed up a few operations. I have provided compiled 64 bit .dll and .so files that work on my version of Windows 11 and Ubuntu through WSL2. If they don't work properly on your machine, my Python code falls back to a marginally slower Python implementation and prints a line saying as much on startup.
 
 ## Usage

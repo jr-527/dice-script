@@ -29,7 +29,7 @@ from functools import cache
 import numpy as np
 
 @cache
-def _solve(faces, n, keep):
+def _solve(faces: int, n: int, keep: int) -> dict:
     '''
     Internal function, implements the logic in drop_die but returns
     a dictionary rather than the usual (start, pmf)
@@ -49,7 +49,7 @@ def _solve(faces, n, keep):
     return result
 
 # not to be confused with "drop dead"
-def drop_die(faces, n, keep):
+def drop_die(faces: int, n: int, keep: int) -> tuple[int, np.ndarray]:
     '''
     Calculates the PMF of rolling n die, where each die has faces sides,
     then throwing out all but the top "keep" die, and returning the sum
@@ -62,11 +62,7 @@ def drop_die(faces, n, keep):
     such that arr[x-start] is the probability of getting x
     '''
     out = []
-    start = None
-    for k,v in _solve(faces, n, keep).items():
-        if start is None:
-            start = k
+    for _, v in _solve(faces, n, keep).items():
         out.append(v)
     out = np.array(out)
-    # return out
-    return start, out / np.sum(out)
+    return keep, out / np.sum(out)

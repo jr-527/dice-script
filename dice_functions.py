@@ -1,10 +1,12 @@
 '''User-facing functions'''
-from die import die, ndm, is_number, trim, pad, multiply_pmfs, bin_coeff, my_convolve, PRINT_COMPARISONS
-from drop import drop_die
+from numbers import Real
+from typing import Callable
 import numpy as np
+from die import die, ndm, bin_coeff, PRINT_COMPARISONS
+from drop import drop_die
 import re
 
-def min0(d):
+def min0(d: die) -> die:
     '''
     Transforms d so that values less than 0 are increased to 0.
     d: A die class object
@@ -12,7 +14,7 @@ def min0(d):
     '''
     return min_val(d, 0)
 
-def min1(d):
+def min1(d: die) -> die:
     '''
     Transforms d so that values less than 1 are increased to 1.
     d: A die class object
@@ -20,7 +22,7 @@ def min1(d):
     '''
     return min_val(d, 1)
 
-def min_val(d, m=1):
+def min_val(d: die, m: int = 1):
     '''
     Transforms a distribution so that values less than m are increased to m.
     d: A die class object.
@@ -53,25 +55,25 @@ def min_val(d, m=1):
             out_str = out_str[:-1] + f', {m})'
     return die(out, m, out_str)
 
-def mean(d):
+def mean(d: die) -> float:
     '''Internal function, returns the mean of a die class object.'''
     x = np.arange(d.start, d.start+len(d.arr))
-    out = np.sum(x * d.arr)
+    out = float(np.sum(x * d.arr))
     if abs(out) < 2**(-53): # values below this are likely rounding artifacts
         out = 0.0 # so it's safer to just round to 0
     return out
 
-def var(d):
+def var(d: die) -> float:
     '''Internal function, returns the variance of a die class object.'''
     x = np.arange(d.start, d.start+len(d.arr))
     mu = mean(d)
-    return max(np.sum(d.arr * (x-mu)**2), 0.0)
+    return max(float(np.sum(d.arr * (x-mu)**2)), 0.0)
 
-def sd(d):
+def sd(d: die) -> float:
     '''Internal function, returns the standard deviation of a die class object.'''
-    return np.sqrt(var(d))
+    return float(np.sqrt(var(d)))
 
-def order_stat(x, num=1, pos=1):
+def order_stat(x: die, num: int = 1, pos: int = 1) -> die:
     '''
     Returns the distribution of the pos order statistic of num iid samples of x.
     pos=1 corresponds to the lowest sample, pos=num to the highest sample.
@@ -101,7 +103,7 @@ def order_stat(x, num=1, pos=1):
 
 order = order_stat
 
-def highest(x, n=2):
+def highest(x: die, n: int = 2) -> die:
     '''
     Returns the distribution of the greatest of n iid samples from x.
     x: A die class object.
@@ -127,16 +129,17 @@ def highest(x, n=2):
             out_str = out_str[-1] + f', {n})'
     return die(pmf, x.start, out_str, True)
 
-def adv(x):
+def adv(x: die) -> die:
     '''
     Returns the distribution of sampling twice from x and keeping the greater sample.
     x: A die class object
     Returns a new die class object.
     '''
     return highest(x, 2)
+
 advantage = adv
 
-def lowest(x, n=2):
+def lowest(x: die, n: int = 2) -> die:
     '''
     Returns the distribution of the lowest of n iid samples from x.
     x: A die class object.
@@ -162,22 +165,24 @@ def lowest(x, n=2):
             out_str = out_str[-1] + f', {n})'
     return die(pmf, x.start, out_str, True)
 
-def disadv(x):
+def disadv(x: die) -> die:
     '''
     Returns the distribution of sampling twice from x and keeping the lower sample.
     x: An object of class die.
     '''
     return lowest(x, 2)
+
 dis = disadv
 disadvantage = disadv
 
-def choice(condition, *args):
+def choice(condition, *args) -> die:
     '''
     Returns the distribution of choosing an argument based on a sample from condition.
-    condition: A probability distribution. Can be a list of non-negative numbers that sums to 1 or a die class.
-               Note that "boolean" die expressions, eg 1d20 > 3, are Bernoulli RVs, so distributions with length 2.
-    *args: Distributions to simulate samples from based on the result of condition. Number of distributions must
-           be equal to the length of condition. Can be integers or die class objects.
+    condition: A probability distribution. Can be a list of non-negative numbers that
+        sums to 1 or a die class. Note that "boolean" die expressions, eg 1d20 > 3,
+        are Bernoulli RVs, so distributions with length 2.
+    *args: Distributions to simulate samples from based on the result of condition. Number of
+        distributions must be same as length of condition. Can be integers or die class objects.
     Ex:
     choice([0.4, 0.4, 0.2], 1d4, 1d6, 2d4)
     Returns the distribution that's a 40% chance of 1d4, 40% of 1d6, and 20% chance of 2d4
@@ -186,12 +191,13 @@ def choice(condition, *args):
     Returns the distribution that's 8d6/2 if adv(1d20+4) < 15, 8d6 otherwise
 
     choice(1d4, 1, 3, 3, 7)
-    Returns the distribution that's 1 with probability 25%, 3 with probability 50%, 7 with probability 25%.
+    Returns the distribution that's 1 with probability 25%, 3 with prob. 50%, 7 with prob. 25%.
     '''
     n = len(args)
     probs = []
     if not isinstance(condition, die):
-        if is_number(condition):
+        if isinstance(condition, Real):
+            condition = float(condition)
             if 0 <= condition and condition <= 1:
                 probs = [condition, 1-condition]
             else:
@@ -213,7 +219,8 @@ def choice(condition, *args):
     lb = np.inf
     rb = -np.inf
     for thing in args:
-        if is_number(thing):
+        if isinstance(thing, Real):
+            thing = float(thing)
             lb = min(lb, round(thing))
             rb = max(rb, round(thing))
         elif isinstance(thing, die):
@@ -221,12 +228,12 @@ def choice(condition, *args):
             rb = max(rb, thing.start+len(thing.arr))
         else:
             raise TypeError('Invalid argument type for choice()')
-    if lb > rb:
+    if lb > rb or not isinstance(lb, int) or not isinstance(rb, int):
         raise ValueError('Error in choice()')
     out = np.zeros(rb-lb+1)
     for thing, p in zip(args, probs):
-        if is_number(thing):
-            out[round(thing)-lb] += p
+        if isinstance(thing, Real):
+            out[round(float(thing))-lb] += p
         else:
             padded = np.hstack([
                 [0.0]*(thing.start-lb),
@@ -234,7 +241,7 @@ def choice(condition, *args):
                 [0.0]*(rb-(thing.start+len(thing.arr)-1))
             ])
             out += padded * p
-    if not np.isclose(sum(out),1):
+    if not np.isclose(sum(out), 1):
         raise ValueError('Error in choice(): result is not a PMF')
     out_string = f'choice({condition}'
     for arg in args:
@@ -242,7 +249,9 @@ def choice(condition, *args):
     out_string += ')'
     return die(out, lb, out_string, True)
 
-def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=None, crit_range=20, adv=0, no_crit_damage=False):
+def attack(bonus: int|die, ac: int|die, damage:int|die, damage_bonus:int|die=0,
+           *, extra_dice:int|die|None=None, crit_range:int=20, adv:int=0,
+           no_crit_damage:bool=False) -> die:
     '''
     Returns the damage distribution of making an attack using DnD 5e rules.
     bonus: The attack's to-hit bonus. Can be a number or die object.
@@ -269,21 +278,22 @@ def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=None, crit_range=20,
     # We want P(miss because natural 1)
     # =P(attack roll >= ac|nat 1)*P(nat 1)
     blocked_hit = (bonus+1) >= ac
-    if not is_number(blocked_hit):
-        ac.basicName = True
+    if isinstance(blocked_hit, die):
+        if isinstance(ac, die):
+            ac.basicName = True
         blocked_hit = blocked_hit[1]
     p_relevant_nat1 = blocked_hit * (d20_roll == 1)[1]
     # the previous line is either a number or a die object
     # if it's a number, we're done. If it's a die object,
     # we need the following line to convert it into a number
-    if not is_number(p_relevant_nat1):
-        p_relevant_nat1 = p_relevant_nat1[1]
+    # if isinstance(p_relevant_nat1, (list, np.ndarray, die)):
+    #     p_relevant_nat1 = p_relevant_nat1[1]
     p_regular_hit = (attack_roll >= ac)[1] - p_crit - p_relevant_nat1
     # In some cases a regular hit is impossible, ie AC 100
     p_regular_hit = max(0.0, p_regular_hit)
     p_miss = 1.0-p_regular_hit-p_crit
     regular_dmg = damage + damage_bonus
-    if not is_number(regular_dmg):
+    if isinstance(regular_dmg, die):
         regular_dmg.basicName = True
     crit_dmg = None
     if no_crit_damage:
@@ -301,8 +311,6 @@ def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=None, crit_range=20,
     if match:
         temp1 = match.group()[1:]
         temp2 = ac_str[:match.start()]
-        if temp1[0] == '-':
-            temp = temp1[1:]
         ac_str = f'{temp1}+{temp2}'
     out.name = f'[{attack_str} vs AC {ac_str} dealing {dmg_str}'
     if crit_range != 20:
@@ -317,7 +325,8 @@ def attack(bonus, ac, damage, damage_bonus=0, *, extra_dice=None, crit_range=20,
 
 crit = attack
 
-def check(bonus, dc, adv=0, *, succeed=None, fail=None):
+def check(bonus: int|die, dc: int|die, adv: int=0, *, succeed: die|None = None,
+          fail: die|None = None) -> die:
     '''
     Returns the distribution of passing/failing a check, with the specified bonus,
     against the specified DC, possibly with advantage/disadvantage. Similar to
@@ -331,11 +340,12 @@ def check(bonus, dc, adv=0, *, succeed=None, fail=None):
     pos_val = 1 if (adv <= 0) else abs(adv)+1
     d20_roll = order_stat(d20, abs(adv)+1, pos_val)
     blocked_check = (bonus+1) >= dc
-    if not is_number(blocked_check):
+    if isinstance(dc, die):
         dc.basicName = True
+    if isinstance(blocked_check, die):
         blocked_check = blocked_check[1]
     p_relevant_nat1 = blocked_check * (d20_roll == 1)[1]
-    if not is_number(bonus):
+    if isinstance(p_relevant_nat1, die):
         p_relevant_nat1 = p_relevant_nat1[1]
     roll_with_bonus = d20_roll + bonus
     roll_with_bonus.basicName = True
@@ -350,7 +360,7 @@ def check(bonus, dc, adv=0, *, succeed=None, fail=None):
 
 save = check
 
-def sample(d):
+def sample(d: die) -> int:
     '''
     Internal function for generating a sample from a distribution.
     d: An object of class die.
@@ -359,7 +369,7 @@ def sample(d):
     u = np.random.default_rng().random()
     return d.start + np.where(np.cumsum(d.arr) >= u)[0][0]
 
-def multiple_inequality(*args):
+def multiple_inequality(*args: float|die) -> die:
     '''
     Internal function for evaluating chained inequalities.
     Returns a number.
@@ -382,11 +392,18 @@ def multiple_inequality(*args):
     #                 if i < j <= k > l == ...:
     #                     out += P(w==i) * P(x==j) * P(y==k) * ...
     # return out
-    relations = {'>':np.greater, '<':np.less, '>=':np.greater_equal,
-                 '<=':np.less_equal, '==':np.equal, '!=':np.not_equal}
-    arrs = [np.array([1.0]) if is_number(x) else x.arr for x in args[::2]]
-    starts = [x if is_number(x) else x.start for x in args[::2]]
-    ops = [relations[x] for x in args[1::2]]
+    relations = {
+        '>':np.greater, '<':np.less, '>=':np.greater_equal,
+        '<=':np.less_equal, '==':np.equal, '!=':np.not_equal
+    }
+    # the types can't be wrong for the next few lines if the function is
+    # called correctly
+    arrs: list[np.ndarray] = [
+        np.array([1.0]) if isinstance(x, Real)
+        else x.arr for x in args[::2]] # type: ignore
+    starts: list[float] = [x if isinstance(x, Real) else x.start for x in args[::2]] # type: ignore
+    ops: list[Callable[[list[float], list[float]], list[np.bool_]]] = [
+        relations[x] for x in args[1::2]] # type: ignore
     # We use einsum because np.outer doesn't play nicely with 3+ arrays.
     # It performs the P(w==i)*P(x==j)*P(y==k)*... part of the pseudocode,
     # but vectorized.
@@ -412,8 +429,7 @@ def multiple_inequality(*args):
     p = np.sum(bools * prod)
     return die(np.array([1-p, p]), 0, ''.join((str(x) for x in args)), True, True)
 
-
-def drop(count, faces, mode, n=1):
+def drop(count: int, faces: int, mode: str, n: int = 1) -> die:
     '''
     Calculates the PMF of rolling count die, where each die has faces sides.
     If mode is "keep highest", we keep the highest n die, throw out
