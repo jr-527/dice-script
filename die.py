@@ -21,13 +21,12 @@ class die:
     name (optional): A string, a name for this distribution.
     basicName (optional): Boolean, should the name be parenthesized when combining with other names.
     '''
-    def __init__(self, arr, start:int, name=None, basicName:bool=False,
-                 isProbability:bool=False):
+    def __init__(self, arr, start:int, name=None, basicName:bool=False, isProbability:bool=False):
         '''
         arr: A list or numpy array that's a valid PMF (non-negative numbers which sum to 1)
         start: An integer, the offset for the first non-zero value in arr,
                so die([.4,.6], 5) is a 40% chance of 5, 60% chance of 6.
-        name (optional): A string, a name for this distribution. Somewhat deprecated.
+        name (optional): A name for this distribution. Somewhat deprecated.
         basicName (optional): Boolean, should the name be parenthesized when combining with other
                               names. Somewhat deprecated.
         '''
@@ -85,7 +84,7 @@ class die:
             return (-self)/(-other)
         if other == 1:
             return self
-        new_start = np.trunc(self.start/other)
+        new_start = int(np.trunc(self.start/other))
         out = my_c.divide_pmf_by_int(self.arr, self.start, other)
         return die(out, new_start, f'{self}/{other}', True)
 
@@ -434,7 +433,7 @@ def comparison(left: die, relation: str, right: float|list[float]) -> die:
             if any((isinstance(element, die) for element in right)):
                 return NotImplemented
             right = list(set(right))
-            return np.sum(((left==element)[1] for element in right)) # type: ignore (numpy)
+            return np.sum([(left==element)[1] for element in right])
         other_arr = None
         other_start = right
         if isinstance(right, Real):
