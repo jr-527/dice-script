@@ -1,7 +1,7 @@
 '''Internal math functions'''
 # pyright: reportIncompatibleMethodOverride=false
 from numbers import Real
-from typing import Self, overload
+from typing import overload
 import numpy as np
 import my_c_importer as my_c
 import re
@@ -21,7 +21,9 @@ class die:
     name (optional): A string, a name for this distribution.
     basicName (optional): Boolean, should the name be parenthesized when combining with other names.
     '''
-    def __init__(self, arr, start:int, name=None, basicName:bool=False, isProbability:bool=False):
+    def __init__(self, arr, start:int, name=None, basicName:bool=False, isProbability:bool=False, 
+                 _cl:None|tuple[float|None, str, np.ndarray]=None,
+                 _cr:None|tuple[float|None, str, np.ndarray]=None):
         '''
         arr: A list or numpy array that's a valid PMF (non-negative numbers which sum to 1)
         start: An integer, the offset for the first non-zero value in arr,
@@ -37,6 +39,8 @@ class die:
         self.name = re.sub(r'\+\-', '-', str(name))
         self.name = re.sub(r'\-\-', '+', self.name)
         self.isProbability = isProbability
+        self._cl = _cl
+        self._cr = _cr
         if len(self.name) > 0 and self.name[0] == '+':
             self.name = self.name[1:]
         self.basicName = basicName
@@ -60,7 +64,7 @@ class die:
         return 0.0
 
     def __repr__(self) -> str:
-        return f'die({self.arr}, {self.start}, {self}, {self.basicName})'
+        return f'die({self.arr}, {self.start}, {self}, {self.basicName}, {self.isProbability})'
 
     def __str__(self) -> str:
         if self.basicName:
@@ -77,7 +81,7 @@ class die:
                 raise ZeroDivisionError("Cannot divide by a distribution that's sometimes 0")
             return divide_pmfs(self, other)
         if not isinstance(other, Real):
-            raise TypeError('Can only divide by numbers')
+            return NotImplemented
         if other == 0:
             raise ZeroDivisionError('Cannot divide by zero')
         if other < 0:
@@ -102,7 +106,7 @@ class die:
         if not isinstance(other, die):            
             if len(self.arr) == 1:
                 return self.start == other
-            raise ValueError(f'Invalid comparison of {self} and {other}')
+            return NotImplemented
         return bool(self.start == other.start and len(self.arr) == len(other.arr) and
             np.all(np.isclose(self.arr, other.arr)))
 
@@ -170,7 +174,7 @@ class die:
         '''Variant of __mul__, self-explanatory.'''
         return self*other
 
-    def __pos__(self) -> Self:
+    def __pos__(self) -> 'die':
         return self
 
     def __neg__(self) -> 'die':
@@ -236,6 +240,8 @@ class die:
                     # otherwise the following line produces the desired error
                 out = pmf_sum(out, self % (i + other.start), y_weight=p)
             return die(out.arr, out.start, f'{self}%{other}', self.basicName)
+        if not isinstance(other, int):
+            return NotImplemented
         if other == 1:
             return die([1.0], 0, f'{self}%{other}', self.basicName)
         n = len(self.arr)
@@ -263,7 +269,7 @@ class die:
         '''Variant of __add__, self-explanatory'''
         return -self + other
 
-    def __eq__(self, other) -> 'die':
+    def __eq__(self, other:'int|die') -> 'die':
         '''
         UNUSUAL BEHAVIOR - DOES NOT RETURN A BOOLEAN VALUE (more useful this way)
 
@@ -272,10 +278,11 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        p = comparison(self, '==', other)
-        if p is NotImplemented:
+        tup = comparison(self, '==', other)
+        if tup is NotImplemented:
             return NotImplemented
-        return die([1-p,p], 0, f'[{self} = {other}]', isProbability=True)
+        p, cl, cr = tup
+        return die([1-p,p], 0, f'[{self} = {other}]', isProbability=True, _cl=cl, _cr=cr)
 
     def __ne__(self, other) -> 'die':
         '''
@@ -286,10 +293,11 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        p = comparison(self, '!=', other)
-        if p is NotImplemented:
+        tup = comparison(self, '!=', other)
+        if tup is NotImplemented:
             return NotImplemented
-        return die([1-p,p], 0, f'[{self} != {other}]', isProbability=True)
+        p, cl, cr = tup
+        return die([1-p,p], 0, f'[{self} != {other}]', isProbability=True, _cl=cl, _cr=cr)
 
     def __lt__(self, other) -> 'die':
         '''
@@ -300,10 +308,11 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        p = comparison(self, '<', other)
-        if p is NotImplemented:
+        tup = comparison(self, '<', other)
+        if tup is NotImplemented:
             return NotImplemented
-        return die([1-p,p], 0, f'[{self} < {other}]', isProbability=True)
+        p, cl, cr = tup
+        return die([1-p,p], 0, f'[{self} < {other}]', isProbability=True, _cl=cl, _cr=cr)
     
     def __le__(self, other) -> 'die':
         '''
@@ -314,10 +323,11 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        p = comparison(self, '<=', other)
-        if p is NotImplemented:
+        tup = comparison(self, '<=', other)
+        if tup is NotImplemented:
             return NotImplemented
-        return die([1-p,p], 0, f'[{self} <= {other}]', isProbability=True)
+        p, cl, cr = tup
+        return die([1-p,p], 0, f'[{self} <= {other}]', isProbability=True, _cl=cl, _cr=cr)
 
     def __gt__(self, other) -> 'die':
         '''
@@ -328,10 +338,11 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        p = comparison(self, '>', other)
-        if p is NotImplemented:
+        tup = comparison(self, '>', other)
+        if tup is NotImplemented:
             return NotImplemented
-        return die([1-p,p], 0, f'[{self} > {other}]', isProbability=True)
+        p, cl, cr = tup
+        return die([1-p,p], 0, f'[{self} > {other}]', isProbability=True, _cl=cl, _cr=cr)
 
     def __ge__(self, other) -> 'die':
         '''
@@ -342,10 +353,11 @@ class die:
         other: A die class object or a number.
         Returns a new die class object.
         '''
-        p = comparison(self, '>=', other)
-        if p is NotImplemented:
+        tup = comparison(self, '>=', other)
+        if tup is NotImplemented:
             return NotImplemented
-        return die([1-p,p], 0, f'[{self} >= {other}]', isProbability=True)
+        p, cl, cr = tup
+        return die([1-p,p], 0, f'[{self} >= {other}]', isProbability=True, _cl=cl, _cr=cr)
 
     def __bool__(self) -> bool:
         '''I'm not really sure why I implemented this one'''
@@ -379,6 +391,63 @@ class die:
                 raise ValueError('Cannot reroll all values on die')
             x *= 1/(1-removed)
         return die(x, start, f'({self}){option}{values}', True)
+    
+    def __or__(self, other:'die') -> 'die':
+        '''
+        Rudimentary conditioning. It's meant to resemble the notation A|B used in
+        probability.
+        other: A die comparison, where one side has the same support (start and
+        length) as self. If both sides have the same support as self, this picks
+        the left side.
+        Ex: 8d6|(8d6>10) returns the value of 8d6, conditioned
+        on getting a result greater than 10.
+        8d6|8d6==(5d2+2) returns the value of 8d6, conditioned on
+        being equal to 5d2+2.
+        Note: In Python's order of operations, arithmetic is performed before
+        this operation, so 8d6|1d4+1d4 is equal to 8d6|(1d4+1d4).
+        '''
+        # We could condition on numbers, but it's pointless.
+        # Conditioning on 1 or True: return self
+        # Conditioning on 0: raise ZeroDivisionError
+        # Conditioning on 0 < p < 1: return NotImplemented
+        # Conditioning on any other number: ValueError (domain error)
+        if not other.isProbability or (other._cl is None and other._cr is None):
+            raise ValueError('Can only condition on the results of a comparison.')
+        start, arr = None, None
+        if other._cr is not None:
+            right_start, name, right_arr = other._cr
+            if name == str(self) and right_start == self.start and len(right_arr) == len(self.arr):
+                print(f'using right {name=}, unless we...')
+                start, arr = right_start, right_arr
+        if other._cl is not None:
+            left_start, name, left_arr = other._cl
+            if name == str(self) and left_start == self.start and len(left_arr) == len(self.arr):
+                start, arr = left_start, left_arr
+        if start is None:
+            raise ValueError('Invalid dimensions for conditioning.')
+        assert isinstance(start, int)
+        assert isinstance(arr, np.ndarray)
+        # print(start, arr)
+        total_prob = np.sum(arr[arr>0])
+        if total_prob < 1e-14:
+            if total_prob == 0:
+                err_msg = 'Cannot condition on event with probability 0. ' + \
+                          'This may be due to rounding errors.'
+                raise ZeroDivisionError(err_msg)
+            print(f'Warning: ill conditioning on probability {total_prob}.')
+            print('Result is likely to be affected by rounding errors.')
+        out = (arr*(arr>0))/total_prob
+        if re.fullmatch(r'\(.*\)',f'{self}') or re.fullmatch(r'[1-9][0-9]*d[1-9][0-9]',f'{self}'):
+            out1 = f'{self}'
+        else:
+            out1 = f'({self})'
+        if re.fullmatch(r'\(.*\)',f'{other}') or re.fullmatch(r'[1-9][0-9]*d[1-9][0-9]',f'{other}'):
+            out1 = f'{other}'
+        else:
+            out1 = f'({other})'
+        out1 = f'{self}' if not self.basicName else f'({self})'
+        out2 = f'{other}' if not other.basicName else f'({other})'
+        return die(out, start, f'{out1}|{out2}', False)
 
 def ndm(n: int, m: int) -> np.ndarray:
     '''
@@ -427,13 +496,27 @@ def trim(arr: list[float]|np.ndarray) -> tuple[int, np.ndarray]:
             last -= 1
     return first, np.array(arr[first:last])
 
-def comparison(left: die, relation: str, right: float|list[float]) -> die:
-        '''Internal function, implements the various inequality operations'''
+def comparison(left: die, relation: str, right: float|die|list[int]) -> tuple[
+    float,
+    tuple[int, str, np.ndarray],
+    tuple[float|None, str, np.ndarray]]:
+        '''
+        Internal function, implements the various inequality operations
+        Returns (p, (left_start, cond_on_left), (right_start, cond_on_right))
+        '''
         if isinstance(right, list):
             if any((isinstance(element, die) for element in right)):
                 return NotImplemented
             right = list(set(right))
-            return np.sum([(left==element)[1] for element in right])
+            if relation == '==':
+                temp = np.array([(left==element)[1] for element in right])
+                p = np.sum(temp)
+                return p, (left.start, str(left), temp), (None, str(right), np.array([p]))
+            elif relation == '!=':
+                temp = np.array([(left==element)[1] for element in right])
+                p = np.sum(temp)
+                return 1-p, (left.start, str(left), temp), (None, str(right), np.array([1-p]))
+            return NotImplemented
         other_arr = None
         other_start = right
         if isinstance(right, Real):
@@ -443,6 +526,7 @@ def comparison(left: die, relation: str, right: float|list[float]) -> die:
             other_start = right.start
         else:
             return NotImplemented
+        assert isinstance(other_start, float) or isinstance(other_start, int)
         relations = {'>':np.greater, '<':np.less, '>=':np.greater_equal,
                      '<=':np.less_equal, '==':np.equal, '!=':np.not_equal}
         # We take the outer product of the PMFs and add up the entries
@@ -459,10 +543,13 @@ def comparison(left: die, relation: str, right: float|list[float]) -> die:
             indices[0],
             indices[1]+(other_start-left.start)
         )
+        cond_on_left: np.ndarray = np.sum(prod*bools, axis=1)
+        cond_on_right: np.ndarray = np.sum(prod*bools, axis=0)
         out = np.sum(prod*bools)
         if PRINT_COMPARISONS[0]:
             print(f'P[{left} {relation} {right}] = {out}')
-        return out
+        # print(f'comparison(left={str(left)}, {relation}, right={str(right)})')
+        return out, (left.start, str(left), cond_on_left), (other_start, str(right), cond_on_right)
 
 def pad(arr: np.ndarray|list[float], start: int, length: int) -> np.ndarray:
     '''

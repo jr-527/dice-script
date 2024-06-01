@@ -369,7 +369,7 @@ def sample(d: die) -> int:
     u = np.random.default_rng().random()
     return d.start + np.where(np.cumsum(d.arr) >= u)[0][0]
 
-def multiple_inequality(*args: float|die) -> die:
+def multiple_inequality(*args: str|float|die) -> die:
     '''
     Internal function for evaluating chained inequalities.
     Returns a number.
@@ -380,6 +380,8 @@ def multiple_inequality(*args: float|die) -> die:
         P(A < B == C) == multiple_inequalities(A, '<', B, '==', C)
         P(A < B < C < D) == multiple_inequalities(A, '<', B, '<', C, '<', D)
     '''
+    if len(args) > 51:
+        raise ValueError('Chained inequality too long.')
     # In Python, w < x <= y > z
     # is equivalent to
     # (w < x) and (x <= y) and (y > z)

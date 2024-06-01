@@ -1,6 +1,6 @@
 import ctypes as ct
 import numpy as np
-import sys, os
+import os
 
 # python -> c:
 # ct.c_int(x)
@@ -21,7 +21,7 @@ try:
         lib_path = 'helpers.dll'
     elif os.name == 'posix':
         lib_path = 'helpers.so'
-    dll = ct.CDLL(os.path.join(sys.path[0], lib_path))
+    dll = ct.CDLL(os.path.join(os.path.dirname(__file__), lib_path))
     dll.multiply_pmfs.argtypes = (
         d_arr,
         d_arr, ct.c_int64,
@@ -99,7 +99,7 @@ try:
             ct.c_int64(x_min), ct.c_int64(y_min), ct.c_int64(lower_bound)
         )
         return np.ctypeslib.as_array(arr_c, len(arr))
-except:
+except Exception:
     print('Error importing C functions, using Python fall-back')
     def multiply_pmfs(arr, x, y, x_min, y_min, lower_bound):
         for i in range(len(x)):

@@ -34,8 +34,6 @@ def _solve(faces: int, n: int, keep: int) -> dict:
     Internal function, implements the logic in drop_die but returns
     a dictionary rather than the usual (start, pmf)
     '''
-    # outcome = faces
-    # faces -= 1
     if faces == 1:
         state = faces * min(n, keep)
         return {state : 1}
@@ -62,7 +60,5 @@ def drop_die(faces: int, n: int, keep: int) -> tuple[int, np.ndarray]:
     such that arr[x-start] is the probability of getting x
     '''
     out = []
-    for _, v in _solve(faces, n, keep).items():
-        out.append(v)
-    out = np.array(out)
+    out = np.array([v for _, v in _solve(faces, n, keep).items()])
     return keep, out / np.sum(out)

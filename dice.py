@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+'''
+Implements dice and mathematical operations on dice.
+This module can be run by executing the main() function, which activates REPL
+functionality. It also provides an API of sorts, in the form of the "handle"
+function, which allows you to do things like
+    d, f = handle('3d7/2 > 5')
+    f.show()
+to get a nice plot.
+'''
 from numbers import Real
 from die import die, ndm
 import numpy as np
@@ -8,8 +17,12 @@ from dice_functions import (min0, min1, min_val, mean, var, sd, order_stat,
 from round_to_width import round_to_width as round_w
 import dice_strings
 import sys
-import numpy as np
-plt = None # For asynchronous importing, to start up more quickly
+# On my older laptop, this file's startup time was about .5 seconds, most of
+# which was spent in the line "import matplotlib.pyplot as plt"
+# To speed this up, we perform the import asynchronously, as plt isn't needed
+# until after the user types something in and presses enter, and this way
+# the user can type things while matplotlib is being imported.
+plt = None
 import threading
 import re
 import warnings
@@ -25,8 +38,12 @@ def import_plt():
     plt_initialized = True
 import_thread = threading.Thread(target=import_plt, name='import matplotlib')
 import_thread.start()
-print('\33]0;Dice Script\a', end='')
-sys.stdout.flush()
+
+__all__ = ['main', 'handle', 'plot', 'process_input', 'd', 'min0', 'min1',
+           'min_val', 'mean', 'var', 'sd', 'order_stat', 'order', 'highest',
+           'adv', 'advantage', 'lowest', 'disadv', 'dis', 'disadvantage',
+           'choice', 'attack', 'crit', 'check', 'save', 'sample',
+           'multiple_inequality', 'drop']
 
 safe_functions = set((
     'd',
@@ -81,6 +98,7 @@ safe_nodes = set((
     ast.Eq, ast.NotEq,
     ast.Lt, ast.LtE,
     ast.Gt, ast.GtE,
+    ast.BitOr
 ))
 
 compare_ops = {
@@ -92,7 +110,7 @@ compare_ops = {
     ast.GtE:ast.Constant('>='),
 }
 
-class MultipleIneq(ast.NodeTransformer):
+class _MultipleIneq(ast.NodeTransformer):
     '''
     Class to convert expressions like a<b<c into the function call
     multiple_inequality(a, '<', b, '<', c)
@@ -118,7 +136,7 @@ def whitelist_eval(string: str) -> die:
     multiple_inequality(a, '<', (b+c), '<', d)
     '''
     tree = ast.parse(string, mode='eval')
-    tree = MultipleIneq().visit(tree)
+    tree = _MultipleIneq().visit(tree)
     for node in ast.walk(tree):
         if type(node) not in safe_nodes:
             raise Exception(f'{type(node)} is not a whitelisted operation')
@@ -139,7 +157,7 @@ def d(x: int, y: int):
     '''Wrapper function for die(ndm(x,y),..)'''
     return die(ndm(x, y), x, f'{x}d{y}', True)
 
-def process_input(text: str) -> die|float:
+def process_input(text: str) -> die|float|None:
     '''
     Internal function. Processes then calls eval on text.
     '''
@@ -163,7 +181,7 @@ def process_input(text: str) -> die|float:
         raise e.with_traceback(e.__traceback__)
     return x
 
-def plot(d: die, name: str):
+def plot(d: die, name: str, print_stuff=True) -> 'matplotlib.pyplot.Figure|None': # type: ignore
     '''
     Internal function. Plots a distribution
     d: A number or die class object
@@ -176,17 +194,21 @@ def plot(d: die, name: str):
         plt_initialized = True
     assert plt is not None
     if d.isProbability:
-        print('Probability:',
-            f"{round_w(mean(d),15,'left',leading_zero=True).strip()}",
-            'standard deviation:',
-            f"{round_w(sd(d),15,'left',leading_zero=True).strip()}")
-        s = int(sample(d))
-        s = 'Yes' if s else 'No'
-        print(f'Random sample from distribution:', s)
-        if d.arr[0] == 0 or d.arr[0] == 1:
-            print('Nothing to plot.')
-            return
-        print('Plotting in other window. That window must be closed to continue.')
+        p = mean(d)
+        if print_stuff:
+            if 0 < abs(p) < 1e-15:
+                print('Possible rounding errors.')
+            print('Probability:',
+                f"{round_w(p,15,'left',leading_zero=True).strip()}",
+                'standard deviation:',
+                f"{round_w(sd(d),15,'left',leading_zero=True).strip()}")
+            s = int(sample(d))
+            s = 'Yes' if s else 'No'
+            print(f'Random sample from distribution:', s)
+            if d.arr[0] == 0 or d.arr[0] == 1:
+                print('Nothing to plot.')
+                return
+        # print('Plotting in other window. That window must be closed to continue.')
         fig, ax = plt.subplots()
         fig.canvas.manager.set_window_title(name) # type: ignore (linter is wrong)
         plt.title('Distribution of ' + name)
@@ -195,14 +217,14 @@ def plot(d: die, name: str):
         ax.set_xlim(-1,1)
         ax.get_xaxis().set_ticks([])
         ax.legend()
-        plt.show()
-        return
-    print('Mean:',
-        f"{round_w(mean(d),15,'left',leading_zero=True).strip()}",
-        'standard deviation:',
-        f"{round_w(sd(d),15,'left',leading_zero=True).strip()}")
-    print(f'Random sample from distribution: {sample(d)}')
-    print('Plotting in other window. That window must be closed to continue.')
+        return fig
+    if print_stuff:
+        print('Mean:',
+            f"{round_w(mean(d),15,'left',leading_zero=True).strip()}",
+            'standard deviation:',
+            f"{round_w(sd(d),15,'left',leading_zero=True).strip()}")
+        print(f'Random sample from distribution: {sample(d)}')
+    # print('Plotting in other window. That window must be closed to continue.')
     fig, ax = plt.subplots()
     fig.canvas.manager.set_window_title(name) # type: ignore
     plt.title('Distribution of ' + name)
@@ -242,24 +264,54 @@ def plot(d: die, name: str):
     ax2.plot(x, cumulative, 'tab:red', label='Cumulative')
     ax2.tick_params(axis='y', labelcolor='tab:red')
     fig.legend()
+    return fig
+
+def handle(text: str) -> 'tuple[die|None, matplotlib.figure.Figure|None]': # type: ignore
+    '''
+    text: A math expression involving dice, such as "3d4+7"
+    Returns (d, f) where d is a die class object representing the distribution
+    of the input expression, and f is a matplotlib figure instance, ie the
+    result of _, f = plt.subplots(). If the text expression doesn't return a
+    die class object, this returns (None, None).
+    Ex:
+    handle('3d4')
+    plt.savefig('file.png')
     plt.show()
 
-if __name__ == '__main__':
+    d, f = handle('4d6')
+    f.savefig('4d6.png')
+    f.show()
+    '''
+    x = process_input(text)
+    if isinstance(x, die):
+        return x, plot(x, text, print_stuff=False)
+    else:
+        return None, None
+
+def main():
+    '''
+    Starts an interactive session where the user can type in expressions
+    such as 3d4, and the result will be plotted. Only intended for use through
+    an interactive Python terminal, using elsewhere may lead to strange results.
+    '''
     if len(sys.argv) > 1:
         text = ' '.join(sys.argv[1:])
         try:
             x = process_input(text)
             if isinstance(x, die):
-                plot(x, text)
+                temp = plot(x, text)
+                if temp:
+                    print('Plotting in other window. That window must be closed to continue.')
+                    temp.show()
             elif isinstance(x, Real):
                 print('Numeric result:', x)
                 x = None
             if x is None:
                 print('Nothing to plot.')
-        except NameError as e:
+        except NameError:
             print('Not a valid input.')
             traceback.print_exc()
-        except Exception as e:
+        except Exception:
             print('Error encountered, aborting input.')
             traceback.print_exc()
         exit()
@@ -290,15 +342,23 @@ if __name__ == '__main__':
             try:
                 x = process_input(text)
                 if isinstance(x, die):
-                    plot(x, text)
-                elif isinstance(x, Real):
-                    print('Numeric result:', x)
-                    x = None
-                if x is None:
+                    temp = plot(x, text)
+                    if temp:
+                        print('Plotting in other window. That window must be closed to continue.')
+                        temp.show()
+                elif x is None:
                     print('Nothing to plot.')
-            except NameError as e:
+                else:
+                    print('Nothing to plot.\nNumeric result:', x)
+            except NameError:
                 print('Not a valid input.')
                 traceback.print_exc()
-            except Exception as e:
+            except Exception:
                 print('Error encountered, aborting input.')
                 traceback.print_exc()
+    
+
+if __name__ == '__main__':
+    print('\33]0;Dice Script\a', end='')
+    sys.stdout.flush()
+    main()
